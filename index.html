@@ -1,0 +1,1674 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>La Balance d'Ondine</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Le tribunal des décisions : pèse le pour et le contre avec le Juge Hibou.">
+<meta name="theme-color" content="#7B5CFF">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="assets/icones/icon-192.png">
+<link rel="apple-touch-icon" href="assets/icones/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Balance">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Pixelify+Sans:wght@400;600&display=swap">
+<style>
+/* Layout : borne d'arcade claire. Bandeau titre + niveau, carte question, puis POUR | tribunal (juge + balance) | CONTRE. */
+:root{
+  --paper:#EEF0FF; --panel:#FFFFFF; --ink:#1B1A3A; --soft:#D9D6FF;
+  --pour:#00B89F; --pour-d:#007F6E; --contre:#FF4F8B; --contre-d:#C42A62;
+  --volt:#FFD23F; --violet:#7B5CFF; --muted:#5C5A86;
+  --f-display:"Press Start 2P", ui-monospace, "Courier New", monospace;
+  --f-body:"Pixelify Sans", ui-monospace, "Courier New", monospace;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{background:var(--paper);color:var(--ink)}
+body{
+  font-family:var(--f-body);font-size:18px;line-height:1.35;
+  background-image:linear-gradient(var(--soft) 2px,transparent 2px),linear-gradient(90deg,var(--soft) 2px,transparent 2px);
+  background-size:32px 32px;background-position:-2px -2px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:24px 48px;
+}
+.app{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+.shake{animation:shake .5s steps(2) 1}
+.jolt{animation:shake .25s steps(2) 1}
+@keyframes shake{0%,100%{transform:translate(0,0)}20%{transform:translate(-8px,4px)}40%{transform:translate(7px,-5px)}60%{transform:translate(-5px,-3px)}80%{transform:translate(4px,5px)}}
+
+/* ---------- En-tête ---------- */
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px}
+h1{font-family:var(--f-display);font-weight:400;margin:0;font-size:clamp(1.25rem,4.2vw,2.5rem);line-height:1.25;letter-spacing:.02em;
+  text-shadow:3px 3px 0 var(--contre),6px 6px 0 var(--pour);text-wrap:balance}
+.tag{font-family:var(--f-display);font-size:.6rem;letter-spacing:.12em;color:var(--violet);margin:0 0 10px}
+.hud{display:flex;gap:10px;align-items:stretch;flex-wrap:wrap}
+.lvl{display:flex;flex-direction:column;gap:5px;background:var(--panel);border:3px solid var(--ink);padding:7px 10px;min-width:210px}
+.lvl b{font-family:var(--f-display);font-weight:400;font-size:.52rem;letter-spacing:.06em}
+.xpbar{height:10px;border:2px solid var(--ink);background:var(--paper)}
+.xpbar i{display:block;height:100%;width:0;background:var(--violet);transition:width .8s steps(12)}
+.lvl small{font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* ---------- Boutons ---------- */
+.panel{background:var(--panel);border:4px solid var(--ink);box-shadow:6px 6px 0 var(--ink)}
+.btn{font-family:var(--f-display);font-size:.62rem;letter-spacing:.06em;color:var(--ink);background:var(--panel);border:3px solid var(--ink);
+  box-shadow:4px 4px 0 var(--ink);padding:10px 12px;cursor:pointer;transition:transform .05s,box-shadow .05s}
+.btn:hover{background:var(--volt)}
+.btn:active{transform:translate(3px,3px);box-shadow:1px 1px 0 var(--ink)}
+.btn:focus-visible,input:focus-visible,.wbtn:focus-visible,.pip:focus-visible,.go:focus-visible{outline:3px solid var(--violet);outline-offset:2px}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+
+/* ---------- Question ---------- */
+.question{padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+.question label{font-family:var(--f-display);font-size:.62rem;letter-spacing:.1em;color:var(--violet)}
+#q{font-family:var(--f-body);font-size:clamp(1.2rem,3vw,1.7rem);font-weight:600;color:var(--ink);border:none;border-bottom:4px dashed var(--soft);background:transparent;padding:6px 2px;width:100%}
+#q:focus{border-bottom-color:var(--violet);outline:none}
+.sample{display:flex;flex-wrap:wrap;gap:10px;align-items:center;font-size:.95rem;color:var(--muted)}
+.sample b{font-family:var(--f-display);font-size:.5rem;background:var(--volt);color:var(--ink);padding:5px 7px;border:2px solid var(--ink)}
+
+/* ---------- Arène ---------- */
+.arena{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:900px){.arena{grid-template-columns:minmax(0,1fr)}.stage{order:-1}}
+.side{display:flex;flex-direction:column;min-width:0}
+.side-head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:4px solid var(--ink);color:#fff}
+.side-head h2{font-family:var(--f-display);font-weight:400;font-size:.9rem;margin:0;letter-spacing:.08em;text-shadow:2px 2px 0 var(--ink)}
+.side-head .sum{font-family:var(--f-display);font-size:.58rem;background:var(--ink);padding:6px 8px;font-variant-numeric:tabular-nums}
+.pour .side-head{background:var(--pour)} .contre .side-head{background:var(--contre)}
+.args{list-style:none;margin:0;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-height:64px}
+.args .empty{color:var(--muted);font-size:.95rem;padding:8px 2px}
+.arg{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:8px 10px;border:3px solid var(--ink);background:var(--paper);animation:pop .25s steps(3)}
+@keyframes pop{from{transform:scale(.85)}to{transform:scale(1)}}
+.arg .txt{min-width:0;overflow-wrap:anywhere}
+.arg .wname{display:block;font-size:.78rem;color:var(--muted)}
+.pips{display:flex;gap:3px}
+.pip{width:12px;height:12px;border:2px solid var(--ink);background:var(--panel);padding:0;cursor:pointer}
+.pour .pip.on{background:var(--pour)} .contre .pip.on{background:var(--contre)}
+.del{border:none;background:none;font-family:var(--f-display);font-size:.6rem;color:var(--muted);cursor:pointer;padding:6px}
+.del:hover{color:var(--contre-d)}
+.add{border-top:4px dashed var(--soft);padding:12px;display:flex;flex-direction:column;gap:10px}
+.add input[type=text]{font-family:var(--f-body);font-size:1.05rem;border:3px solid var(--ink);padding:9px 10px;width:100%;background:var(--panel);color:var(--ink)}
+.wrow{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.wpick{display:flex;align-items:flex-end;gap:4px}
+.wbtn{width:22px;border:2px solid var(--ink);background:var(--panel);cursor:pointer;padding:0}
+.wbtn[data-w="1"]{height:10px}.wbtn[data-w="2"]{height:16px}.wbtn[data-w="3"]{height:22px}.wbtn[data-w="4"]{height:28px}.wbtn[data-w="5"]{height:34px}
+.pour .wbtn.on{background:var(--pour)} .contre .wbtn.on{background:var(--contre)}
+.wlabel{font-size:.95rem;min-width:7.5em}
+.wlabel small{display:block;color:var(--muted);font-size:.75rem}
+.add .btn{margin-left:auto}
+
+/* ---------- Tribunal ---------- */
+.stage{padding:14px;display:flex;flex-direction:column;gap:12px;position:relative;min-width:0;background:linear-gradient(180deg,#F7F5FF 0%,#E7FFF9 100%)}
+.judge{display:flex;gap:12px;align-items:stretch}
+#judge{width:144px;height:88px;flex:none;image-rendering:pixelated;image-rendering:crisp-edges;border:3px solid var(--ink);background:linear-gradient(180deg,#FFFFFF,#ECE8FF)}
+.bubble{position:relative;flex:1;min-width:0;background:var(--panel);border:3px solid var(--ink);padding:8px 10px;font-size:1rem;line-height:1.3}
+.bubble::before{content:"";position:absolute;left:-9px;top:22px;width:9px;height:12px;background:var(--ink);clip-path:polygon(100% 0,0 50%,100% 100%)}
+.bubble b{display:block;font-family:var(--f-display);font-weight:400;font-size:.5rem;letter-spacing:.08em;color:var(--violet);margin-bottom:5px}
+.bubble.devil{background:#FFF0F5}
+.bubble.devil b{color:var(--contre-d)}
+.say{overflow-wrap:anywhere}
+.screen{position:relative;overflow:hidden;border:4px solid var(--ink);background:repeating-linear-gradient(0deg,rgba(123,92,255,.06) 0 2px,transparent 2px 4px),linear-gradient(180deg,#FFFFFF 0%,#EAE6FF 100%)}
+#scale{display:block;width:100%;aspect-ratio:200/130;image-rendering:pixelated;image-rendering:crisp-edges;max-width:100%;transform-origin:50% 62%;transition:transform .9s cubic-bezier(.2,.8,.2,1)}
+.screen.zoom #scale{transform:scale(1.45)}
+.screen.zoom::after{content:"RALENTI";position:absolute;top:8px;left:8px;font-family:var(--f-display);font-size:.5rem;color:#fff;background:var(--contre);padding:4px 6px;animation:blink .6s steps(1) infinite}
+.legend{display:flex;justify-content:space-between;font-family:var(--f-display);font-size:.55rem;letter-spacing:.08em}
+.legend .l{color:var(--pour-d)}.legend .r{color:var(--contre-d)}
+.countdown{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none;font-family:var(--f-display);font-size:clamp(2.4rem,9vw,4.5rem);color:var(--volt);
+  text-shadow:4px 4px 0 var(--ink),-2px -2px 0 var(--ink),2px -2px 0 var(--ink),-2px 2px 0 var(--ink)}
+.countdown span{animation:zoomin .6s steps(6) 1}
+@keyframes zoomin{from{transform:scale(2.2);opacity:0}30%{opacity:1}to{transform:scale(1)}}
+.status{font-family:var(--f-display);font-size:.55rem;letter-spacing:.08em;color:var(--muted);text-align:center;min-height:1.2em}
+.go{font-family:var(--f-display);font-size:clamp(.75rem,2.4vw,1.05rem);letter-spacing:.06em;background:var(--volt);color:var(--ink);border:4px solid var(--ink);box-shadow:6px 6px 0 var(--ink);
+  padding:18px 16px;cursor:pointer;width:100%;line-height:1.6}
+.go:hover{background:#FFE37A}
+.go:active{transform:translate(4px,4px);box-shadow:2px 2px 0 var(--ink)}
+.go .blink{animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.go small{display:block;font-family:var(--f-body);font-size:.85rem;letter-spacing:0;margin-top:6px}
+.go[disabled]{opacity:.6;cursor:wait}
+
+/* Bulle flottante quand le tribunal est hors de l'écran */
+#toast{position:fixed;z-index:25;left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));bottom:calc(16px + env(safe-area-inset-bottom,0px));
+  max-width:520px;margin:0 auto;display:flex;gap:10px;align-items:center;padding:8px;animation:rise .25s steps(4)}
+#toast canvas{width:72px;height:44px;flex:none;image-rendering:pixelated;border:2px solid var(--ink);background:#fff}
+#toast .bubble{border-width:2px}
+#toast .bubble::before{display:none}
+
+/* ---------- Overlays ---------- */
+#fx{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:40}
+.flash{position:fixed;inset:0;background:#fff;z-index:45;pointer-events:none;animation:flash .5s ease-out forwards}
+@keyframes flash{from{opacity:1}to{opacity:0}}
+.overlay{position:fixed;inset:0;z-index:30;display:grid;place-items:center;background:rgba(27,26,58,.55);
+  padding:calc(env(safe-area-inset-top,0px) + 24px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 16px) max(16px,env(safe-area-inset-left,0px));overflow-y:auto}
+.card{position:relative;z-index:50;width:min(600px,100%);padding:24px 22px;display:flex;flex-direction:column;gap:16px;animation:rise .35s steps(5)}
+.card.wide{width:min(780px,100%)}
+@keyframes rise{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+.card .ask{font-size:1.05rem;color:var(--muted);margin:0;flex:1;min-width:0;overflow-wrap:anywhere}
+.vhead{display:flex;align-items:center;gap:12px;padding-right:64px}
+.vjudge{width:96px;height:96px;flex:none;image-rendering:pixelated;image-rendering:crisp-edges;max-width:100%}
+.vjudge.small{width:64px;height:64px}
+.vjudge.bang{animation:bang .7s steps(7) 1;transform-origin:50% 100%}
+@keyframes bang{0%{transform:translateY(0) rotate(0)}20%{transform:translateY(-14px) rotate(-8deg)}45%{transform:translateY(2px) rotate(4deg) scaleY(.9)}70%{transform:translateY(-4px) rotate(-2deg)}100%{transform:none}}
+.vdevil{width:64px;height:64px;flex:none;image-rendering:pixelated;image-rendering:crisp-edges;animation:hop .35s steps(2) infinite alternate}
+@keyframes hop{from{transform:translateY(0)}to{transform:translateY(-6px)}}
+@media (max-width:900px){.vjudge{width:72px;height:72px}.vdevil{width:48px;height:48px}.vhead{padding-right:48px}}
+.typed{font-family:var(--f-display);font-size:clamp(.7rem,2.6vw,.95rem);letter-spacing:.06em;margin:0;min-height:1.4em}
+.typed::after{content:"_";animation:blink .7s steps(1) infinite}
+.typed.done::after{content:""}
+.verdict{font-family:var(--f-display);font-weight:400;margin:0;line-height:1.3;font-size:clamp(1.2rem,5.6vw,2.4rem);text-wrap:balance;padding:16px 12px;text-align:center;border:4px solid var(--ink);color:#fff;text-shadow:3px 3px 0 var(--ink)}
+.verdict.slam{animation:slam .45s steps(6) 1}
+@keyframes slam{from{transform:scale(2.6) rotate(-6deg);opacity:0}60%{transform:scale(.92) rotate(1deg);opacity:1}to{transform:scale(1)}}
+.verdict.oui{background:var(--pour)} .verdict.non{background:var(--contre)} .verdict.tie{background:var(--violet)}
+.stamp{position:absolute;top:-22px;right:-8px;font-family:var(--f-display);font-size:1rem;padding:10px 10px;border:4px solid currentColor;background:var(--panel);transform:rotate(12deg);animation:stamp .5s steps(5) 1;box-shadow:4px 4px 0 var(--ink)}
+.stamp.oui{color:var(--pour-d)} .stamp.non{color:var(--contre-d)} .stamp.tie{color:var(--violet)}
+@keyframes stamp{from{transform:rotate(-20deg) scale(4);opacity:0}70%{transform:rotate(14deg) scale(.9);opacity:1}to{transform:rotate(12deg) scale(1)}}
+.quip{font-size:1.15rem;margin:0}
+.meter{display:flex;height:22px;border:3px solid var(--ink)}
+.meter div{transition:width .8s steps(10)}
+.meter .mp{background:var(--pour)} .meter .mc{background:var(--contre)}
+.score{display:flex;justify-content:space-between;gap:8px;font-family:var(--f-display);font-size:.55rem;letter-spacing:.06em;font-variant-numeric:tabular-nums;margin-top:6px}
+.mvp{font-size:.98rem;color:var(--muted);margin:0;overflow-wrap:anywhere}
+.mvp strong{color:var(--ink)}
+.rewards{display:flex;flex-direction:column;gap:8px;border:3px dashed var(--violet);padding:10px 12px;background:#F6F3FF}
+.rewards .xp{font-family:var(--f-display);font-size:.6rem;letter-spacing:.06em;color:var(--violet)}
+.rewards .up{font-family:var(--f-display);font-size:.6rem;letter-spacing:.06em;background:var(--volt);border:2px solid var(--ink);padding:6px 8px;align-self:flex-start;animation:pop .4s steps(4)}
+.actions{display:flex;flex-wrap:wrap;gap:12px}
+.coinbox{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.coin{width:64px;height:64px;background:var(--volt);border:4px solid var(--ink);display:grid;place-items:center;font-family:var(--f-display);font-size:.6rem;
+  clip-path:polygon(25% 0,75% 0,100% 25%,100% 75%,75% 100%,25% 100%,0 75%,0 25%)}
+.coin.spin{animation:spin 1.6s steps(16) 1}
+@keyframes spin{0%{transform:scaleX(1) translateY(0)}25%{transform:scaleX(-1) translateY(-40px)}50%{transform:scaleX(1) translateY(-60px)}75%{transform:scaleX(-1) translateY(-30px)}100%{transform:scaleX(1) translateY(0)}}
+.reveal{display:flex;flex-direction:column;gap:16px}
+
+/* Trophées */
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
+.troph{display:flex;gap:10px;align-items:flex-start;border:3px solid var(--ink);padding:10px;background:var(--paper)}
+.troph.new{background:#FFF7D1;animation:pop .4s steps(4)}
+.troph.locked{opacity:.5}
+.ticon{width:30px;height:30px;flex:none;display:grid;place-items:center;font-family:var(--f-display);font-size:.6rem;background:var(--volt);border:3px solid var(--ink);
+  clip-path:polygon(0 0,100% 0,100% 55%,70% 75%,70% 85%,85% 85%,85% 100%,15% 100%,15% 85%,30% 85%,30% 75%,0 55%)}
+.troph.locked .ticon{background:var(--soft)}
+.troph b{display:block;font-family:var(--f-display);font-weight:400;font-size:.55rem;letter-spacing:.04em;line-height:1.5;margin-bottom:3px}
+.troph span{font-size:.9rem;color:var(--muted)}
+.card h2.title{font-family:var(--f-display);font-weight:400;font-size:.9rem;margin:0;letter-spacing:.06em}
+
+.foot{text-align:center;color:var(--muted);font-size:.9rem;max-width:70ch;margin:0 auto}
+
+/* ---------- Interrogatoire, intuition, aide ---------- */
+.arg.pending{background:#FFF7D1;border-style:dashed}
+.arg.pending .wname{color:var(--contre-d)}
+.redo{font-size:.8rem}
+.wrow .btn{width:100%}
+.helpbtn{width:100%;font-size:.55rem;line-height:1.6;background:#F6F3FF}
+.qmeta{display:flex;flex-direction:column;gap:8px;align-items:flex-start;min-width:0}
+.qstep{font-family:var(--f-display);font-weight:400;font-size:.6rem;letter-spacing:.06em}
+.sidetag{font-family:var(--f-display);font-size:.5rem;color:#fff;padding:5px 7px;border:2px solid var(--ink)}
+.sidetag.pour{background:var(--pour)} .sidetag.contre{background:var(--contre)}
+.quote{margin:0;font-size:1.1rem;color:var(--muted);overflow-wrap:anywhere}
+.qprog{display:flex;gap:4px}
+.qprog i{flex:1;height:8px;border:2px solid var(--ink);background:var(--paper)}
+.qprog i.on{background:var(--violet)}
+.qq{font-family:var(--f-body);font-weight:600;font-size:clamp(1.2rem,3.4vw,1.45rem);line-height:1.3;margin:0;text-wrap:balance}
+.opts{display:grid;gap:10px}
+.opts.cats{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+.opt{display:flex;gap:10px;align-items:center;text-align:left;font-family:var(--f-body);font-size:1.08rem;letter-spacing:0;padding:12px 14px;min-height:48px}
+.opt kbd{font-family:var(--f-display);font-size:.5rem;border:2px solid var(--ink);padding:3px 5px;background:var(--paper);flex:none}
+.why{margin:0;font-size:.92rem;color:var(--muted);border-left:4px solid var(--soft);padding-left:10px}
+.btn.ghost{box-shadow:none;border-style:dashed;background:transparent}
+.qcard.qin .qq,.qcard.qin .opts{animation:enter .24s cubic-bezier(.23,1,.32,1) both}
+.qcard.qin .opts{animation-delay:.05s}
+.card h3.title.sm{font-size:.6rem;margin:4px 0 0}
+.hgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.hcat{border:3px solid var(--ink);padding:10px;display:flex;flex-direction:column;gap:8px;background:var(--paper)}
+.hcat.done{background:#E7FFF9}
+.hcat b{font-family:var(--f-display);font-weight:400;font-size:.5rem;letter-spacing:.06em}
+.hp{font-family:var(--f-body);font-size:.95rem;text-align:left;border:2px solid var(--ink);background:var(--panel);color:var(--ink);padding:8px;cursor:pointer;box-shadow:2px 2px 0 var(--ink)}
+.hp.pour{border-left:8px solid var(--pour)} .hp.contre{border-left:8px solid var(--contre)}
+.hp:hover{background:#FFF7D1}
+.psy{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:6px;font-size:1rem}
+.insight{margin:0;border:3px solid var(--violet);background:#F6F3FF;padding:10px 12px;font-size:1.02rem}
+.detail{border:3px solid var(--ink);padding:8px 12px;background:var(--paper)}
+.detail summary{font-family:var(--f-display);font-size:.55rem;letter-spacing:.06em;cursor:pointer;padding:6px 0}
+.drow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:center;padding:8px 0;border-top:2px dashed var(--soft)}
+.drow .dt{min-width:0;overflow-wrap:anywhere}
+.drow .dv{font-family:var(--f-display);font-size:.5rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+.drow .dbar{grid-column:1 / -1;height:10px;border:2px solid var(--ink);background:var(--panel)}
+.drow .dbar i{display:block;height:100%}
+.dpour .dbar i{background:var(--pour)} .dcontre .dbar i{background:var(--contre)}
+.drow small{grid-column:1 / -1;color:var(--muted);font-size:.85rem}
+.blind{margin:8px 0 2px;font-size:.92rem;color:var(--muted)}
+.touch-only{display:none}
+
+/* ---------- Téléphone & tactile ---------- */
+@media (hover:none),(pointer:coarse){
+  .btn:hover{background:var(--panel)} .go:hover{background:var(--volt)}
+  .kbd-only{display:none} .touch-only{display:inline}
+  .pip{width:20px;height:20px} .pips{gap:4px} .wbtn{width:30px}
+  .del{padding:10px 8px;font-size:.75rem}
+}
+@media (max-width:900px){
+  body{font-size:17px;padding-block:16px calc(120px + env(safe-area-inset-bottom,0px))}
+  .app{gap:18px}
+  header{align-items:flex-start}
+  .lvl{flex:1}
+  .stage{padding:10px}
+  #judge{width:108px;height:66px}
+  .go{position:fixed;left:0;right:0;bottom:0;z-index:20;width:auto;border-width:4px 0 0;box-shadow:0 -4px 0 rgba(27,26,58,.15);
+    padding:14px max(16px,env(safe-area-inset-right,0px)) calc(14px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+  .go:active{transform:none;box-shadow:none;background:#FFE37A}
+  .go small{font-size:.8rem;margin-top:4px}
+  #toast{bottom:calc(92px + env(safe-area-inset-bottom,0px))}
+  .side-head h2{font-size:.8rem}
+  .arg{grid-template-columns:minmax(0,1fr) auto;row-gap:6px}
+  .arg .pips{grid-column:1;grid-row:2}
+  .arg .del{grid-column:2;grid-row:1 / span 2;align-self:center}
+  .add .btn{margin-left:0;flex:1 1 100%;padding:14px}
+  .wlabel{min-width:0;flex:1}
+  .card{padding:18px 16px}
+  .actions .btn{flex:1 1 100%;padding:14px}
+  .foot{font-size:.85rem}
+}
+/* ---------- Finitions : entrées/sorties, bulles, zones tactiles ---------- */
+.overlay{animation:fade .3s cubic-bezier(.23,1,.32,1)}
+.overlay .card{animation-duration:.3s}
+@keyframes fade{from{opacity:0}}
+.overlay.closing{animation:fadeout .16s ease-out forwards}
+.overlay.closing .card{animation:sink .16s ease-out forwards}
+@keyframes fadeout{to{opacity:0}}
+@keyframes sink{to{transform:translateY(8px);opacity:0}}
+.reveal > .in{animation:enter .32s cubic-bezier(.23,1,.32,1) both;animation-delay:calc(var(--i,0) * 90ms + 140ms)}
+@keyframes enter{from{opacity:0;transform:translateY(10px)}}
+.bubble{transform-origin:0 50%}
+.bubble.pop{animation:bubpop .2s cubic-bezier(.23,1,.32,1)}
+.bubble.devil.pop{animation:bubdevil .32s steps(4)}
+@keyframes bubpop{from{transform:scale(.96)}}
+@keyframes bubdevil{0%{transform:rotate(-2deg) scale(.96)}33%{transform:rotate(1.5deg)}66%{transform:rotate(-.8deg)}100%{transform:none}}
+#toast.out{animation:toastout .16s ease-out forwards}
+@keyframes toastout{to{opacity:0;transform:translateY(8px)}}
+.pip,.wbtn{position:relative}
+.pip::after{content:"";position:absolute;left:-1px;right:-1px;top:-14px;bottom:-14px}
+.wbtn::after{content:"";position:absolute;left:-2px;right:-2px;bottom:-5px;height:44px}
+.del{min-width:40px;min-height:40px}
+@media (max-width:900px){ .arg{grid-template-columns:minmax(0,1fr) auto auto} .arg .del{grid-column:auto;grid-row:auto} }
+.go .busy{display:none}
+.go[disabled] .idle{display:none}
+.go[disabled] .busy{display:inline}
+.go[disabled]{opacity:1;background:var(--soft);cursor:wait}
+.go .busy{white-space:nowrap}
+.go .busy small{white-space:normal}
+.go .dots i{font-style:normal;animation:blink 1s steps(1) infinite}
+.go .dots i:nth-child(2){animation-delay:.33s}
+.go .dots i:nth-child(3){animation-delay:.66s}
+@media (max-width:900px){ .go:active{box-shadow:inset 0 4px 0 rgba(27,26,58,.18)} }
+/* ---------- Écran titre ---------- */
+.splash{position:fixed;inset:0;z-index:60;display:grid;place-items:center;overflow:hidden;background:var(--paper);
+  padding:calc(env(safe-area-inset-top,0px) + 24px) max(16px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 24px) max(16px,env(safe-area-inset-left,0px))}
+.splash.out{animation:splashout .45s cubic-bezier(.7,0,.84,0) forwards}
+@keyframes splashout{to{transform:translateY(-100%)}}
+.sgrid{position:absolute;inset:-50% -50% 0;background-image:linear-gradient(var(--violet) 2px,transparent 2px),linear-gradient(90deg,var(--violet) 2px,transparent 2px);
+  background-size:48px 48px;opacity:.18;transform:perspective(420px) rotateX(58deg);transform-origin:50% 100%;animation:grid 1.6s linear infinite}
+@keyframes grid{to{background-position:0 48px}}
+.sbox{position:relative;display:flex;flex-direction:column;align-items:center;gap:18px;text-align:center;max-width:560px}
+.stitle{font-family:var(--f-display);font-weight:400;margin:0;font-size:clamp(1.6rem,7vw,3.2rem);line-height:1.3;text-shadow:4px 4px 0 var(--contre),8px 8px 0 var(--pour);animation:titlein .7s steps(7) both}
+@keyframes titlein{from{transform:scale(2.4);opacity:0}to{transform:none;opacity:1}}
+.sowl{width:160px;height:160px;image-rendering:pixelated;image-rendering:crisp-edges;animation:hop .5s steps(2) infinite alternate}
+.sinfo{margin:0;font-size:1.1rem;color:var(--muted);max-width:36ch}
+.splash .go.sgo{position:static;width:auto;border-width:4px;box-shadow:6px 6px 0 var(--ink);padding:16px 22px}
+
+/* ---------- HUD : archives, installation ---------- */
+#abtn{position:relative}
+.dot{position:absolute;top:-10px;right:-10px;font-style:normal;font-family:var(--f-display);font-size:.55rem;background:var(--contre);color:#fff;border:2px solid var(--ink);padding:3px 5px;animation:hop .4s steps(2) infinite alternate}
+.btn.install{background:var(--volt)}
+
+/* ---------- Archives ---------- */
+.cases{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;max-height:min(60vh,560px);overflow-y:auto}
+.case{border:3px solid var(--ink);background:var(--paper);padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.case.todo{border-style:dashed;background:#FFF7D1}
+.chead{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.cv{font-family:var(--f-display);font-size:.5rem;color:#fff;padding:5px 7px;border:2px solid var(--ink)}
+.cv.oui{background:var(--pour)} .cv.non{background:var(--contre)} .cv.tie{background:var(--violet)}
+.cdate{font-size:.85rem;color:var(--muted)}
+.cq{margin:0;font-weight:600;overflow-wrap:anywhere}
+.case small{color:var(--muted);overflow-wrap:anywhere}
+.cask{margin:4px 0 0;font-size:.95rem}
+.crow{display:flex;flex-wrap:wrap;gap:8px}
+.crow .btn{font-size:.5rem;padding:8px 9px;box-shadow:3px 3px 0 var(--ink)}
+.cfol{margin:0;font-size:.95rem}
+.cdel{align-self:flex-end;border:none;background:none;color:var(--muted);font-size:.85rem;cursor:pointer;text-decoration:underline}
+.scard{width:100%;max-width:420px;align-self:center;border:3px solid var(--ink)}
+.btn.share{background:var(--volt)}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0s!important;animation-iteration-count:1!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <header>
+    <div>
+      <p class="tag">TRIBUNAL DES DÉCISIONS · PRÉSIDÉ PAR LE JUGE HIBOU</p>
+      <h1>La Balance d'Ondine</h1>
+    </div>
+    <div class="hud">
+      <div class="lvl" aria-live="polite">
+        <b id="lvlName">NIV 1 · STAGIAIRE DU TRIBUNAL</b>
+        <div class="xpbar"><i id="xpFill"></i></div>
+        <small id="xpTxt">0 / 30 XP · 0 verdict</small>
+      </div>
+      <button class="btn" id="abtn" type="button">ARCHIVES<i class="dot" id="adot" hidden>!</i></button>
+      <button class="btn" id="tbtn" type="button">TROPHÉES 0/20</button>
+      <button class="btn" id="mute" type="button" aria-pressed="false">SON : ON</button>
+      <button class="btn install" id="installBtn" type="button" hidden>INSTALLER L'APPLI</button>
+    </div>
+  </header>
+
+  <section class="panel question">
+    <label for="q">LA QUESTION QUI TE TRITURE</label>
+    <input id="q" type="text" maxlength="140" placeholder="Est-ce que je… ?" autocomplete="off">
+    <div class="sample" id="sampleBar" hidden>
+      <b>EXEMPLE</b><span>Ceci est une partie de démonstration. Efface tout pour poser ta vraie question.</span>
+      <button class="btn" id="clearAll" type="button">TOUT EFFACER</button>
+    </div>
+  </section>
+
+  <main class="arena">
+    <section class="panel side pour" data-side="pour" aria-label="Arguments pour">
+      <div class="side-head"><h2>POUR</h2><span class="sum" id="sum-pour">POIDS 0</span></div>
+      <ul class="args" id="list-pour"></ul>
+      <form class="add" id="form-pour" autocomplete="off">
+        <input type="text" id="in-pour" maxlength="90" placeholder="Un argument pour…" aria-label="Nouvel argument pour">
+        <div class="wrow"><button class="btn" type="submit">+ AJOUTER ET INTERROGER</button></div>
+      </form>
+    </section>
+
+    <section class="panel stage" aria-label="Le tribunal">
+      <div class="judge">
+        <canvas id="judge" width="72" height="44" aria-hidden="true"></canvas>
+        <div class="bubble" id="bubble" aria-live="polite"><b id="who">JUGE HIBOU</b><span class="say" id="say"></span></div>
+      </div>
+      <div class="screen" id="screen">
+        <canvas id="scale" width="200" height="130" aria-label="Balance de la justice en pixels"></canvas>
+        <div class="countdown" id="countdown" aria-live="assertive"></div>
+      </div>
+      <div class="legend"><span class="l">◀ POUR</span><span class="r">CONTRE ▶</span></div>
+      <div class="status" id="status">LES POIDS SONT SCELLÉS. MÊME TOI TU NE LES CONNAIS PAS.</div>
+      <button class="btn helpbtn" id="helpBtn" type="button">AIDE DU HIBOU : TROUVER DES ARGUMENTS</button>
+      <button class="go" id="go" type="button">
+        <span class="idle"><span class="blink">▶</span> <span class="kbd-only">APPUIE SUR ENTRÉE</span><span class="touch-only">TOUCHE POUR PESER</span>
+        <small><span class="kbd-only">ou clique ici pour lancer la pesée</span><span class="touch-only">ou « Entrée » du clavier sur un champ vide</span></small></span>
+        <span class="busy">PESÉE EN COURS<span class="dots"><i>.</i><i>.</i><i>.</i></span><small>Silence, le tribunal délibère.</small></span>
+      </button>
+    </section>
+
+    <section class="panel side contre" data-side="contre" aria-label="Arguments contre">
+      <div class="side-head"><h2>CONTRE</h2><span class="sum" id="sum-contre">POIDS 0</span></div>
+      <ul class="args" id="list-contre"></ul>
+      <form class="add" id="form-contre" autocomplete="off">
+        <input type="text" id="in-contre" maxlength="90" placeholder="Un argument contre…" aria-label="Nouvel argument contre">
+        <div class="wrow"><button class="btn" type="submit">+ AJOUTER ET INTERROGER</button></div>
+      </form>
+    </section>
+  </main>
+
+  <p class="foot">Chaque argument passe par l'interrogatoire du hibou : importance, méthode 10-10-10, probabilité et une question de recul. Le poids est calculé et reste secret jusqu'au verdict. Touche ↻ pour refaire un interrogatoire.</p>
+</div>
+
+<div class="panel" id="toast" hidden><canvas id="tjudge" width="72" height="44" aria-hidden="true"></canvas><div class="bubble" id="tbubble"><b id="twho">JUGE HIBOU</b><span class="say" id="tsay"></span></div></div>
+<canvas id="fx" aria-hidden="true"></canvas>
+
+<div class="overlay" id="overlay" hidden>
+  <div class="panel card" role="dialog" aria-modal="true" aria-labelledby="typed">
+    <div class="vhead">
+      <img id="vjudge" class="vjudge" alt="Le Juge Hibou, marteau levé" width="64" height="64">
+      <p class="ask" id="askEcho"></p>
+      <img id="vdevil" class="vdevil" alt="L'avocat du diable qui jubile" width="32" height="32" hidden>
+    </div>
+    <p class="typed" id="typed"></p>
+    <div class="reveal" id="reveal" hidden aria-live="polite"></div>
+  </div>
+</div>
+
+<div class="splash" id="splash" role="dialog" aria-modal="true" aria-labelledby="stitle">
+  <div class="sgrid" aria-hidden="true"></div>
+  <div class="sbox">
+    <p class="tag">TRIBUNAL DES DÉCISIONS</p>
+    <h1 class="stitle" id="stitle">La Balance<br>d'Ondine</h1>
+    <img class="sowl" data-img="judge" alt="Le Juge Hibou" width="64" height="64">
+    <p class="sinfo" id="sinfo">Pèse le pour et le contre. Le hibou s'occupe du reste.</p>
+    <button class="go sgo" id="sgo" type="button"><span class="blink">▶</span> TOUCHE POUR COMMENCER</button>
+  </div>
+</div>
+
+<div class="overlay" id="aover" hidden>
+  <div class="panel card wide" role="dialog" aria-modal="true" aria-labelledby="atitle">
+    <div class="vhead"><img class="vjudge small" data-img="judge" alt="" width="64" height="64"><h2 class="title" id="atitle">LES ARCHIVES DU TRIBUNAL</h2></div>
+    <p class="quip" id="asum"></p>
+    <ul class="cases" id="alist"></ul>
+    <div class="actions"><button class="btn" id="aclose" type="button">RETOUR AU TRIBUNAL</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="sover" hidden>
+  <div class="panel card" role="dialog" aria-modal="true" aria-labelledby="sotitle">
+    <h2 class="title" id="sotitle">TA CARTE DE VERDICT</h2>
+    <img class="scard" id="simg" alt="Carte du verdict à partager">
+    <p class="why">Appui long sur l'image (ou clic droit) pour l'enregistrer, puis partage-la où tu veux.</p>
+    <div class="actions"><button class="btn" id="sclose" type="button">FERMER</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="iosover" hidden>
+  <div class="panel card" role="dialog" aria-modal="true" aria-labelledby="iostitle">
+    <div class="vhead"><img class="vjudge small" data-img="judge" alt="" width="64" height="64"><h2 class="title" id="iostitle">INSTALLER SUR L'ÉCRAN D'ACCUEIL</h2></div>
+    <ol class="psy">
+      <li>Dans Safari, touche le bouton <b>Partager</b> (le carré avec une flèche vers le haut).</li>
+      <li>Fais défiler et touche <b>Sur l'écran d'accueil</b>.</li>
+      <li>Touche <b>Ajouter</b>. Le Juge Hibou t'attend sur ton écran d'accueil.</li>
+    </ol>
+    <div class="actions"><button class="btn" id="iosclose" type="button">COMPRIS</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="tover" hidden>
+  <div class="panel card wide" role="dialog" aria-modal="true" aria-labelledby="ttitle">
+    <div class="vhead"><img id="tjimg" class="vjudge small" alt="" width="64" height="64"><h2 class="title" id="ttitle">SALLE DES TROPHÉES</h2></div>
+    <p class="quip" id="tsum"></p>
+    <div class="tgrid" id="tgrid"></div>
+    <div class="actions"><button class="btn" id="tclose" type="button">RETOUR AU TRIBUNAL</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="qover" hidden>
+  <div class="panel card qcard" id="qcard" role="dialog" aria-modal="true" aria-labelledby="qq">
+    <div class="vhead"><img class="vjudge small" data-img="judge" alt="" width="64" height="64">
+      <div class="qmeta"><b class="qstep" id="qstep">INTERROGATOIRE</b><span class="sidetag pour" id="qside">ARGUMENT POUR</span></div></div>
+    <p class="quote" id="qarg"></p>
+    <div class="qprog" id="qprog" aria-hidden="true"></div>
+    <h2 class="qq" id="qq"></h2>
+    <div class="opts" id="qopts"></div>
+    <p class="why" id="qwhy"></p>
+    <div class="actions"><button class="btn ghost" id="qcancel" type="button">PLUS TARD</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="iover" hidden>
+  <div class="panel card" role="dialog" aria-modal="true" aria-labelledby="ititle">
+    <div class="vhead"><img class="vjudge small" data-img="judge" alt="" width="64" height="64"><h2 class="title" id="ititle">AVANT LE VERDICT…</h2></div>
+    <p class="qq">Au fond de toi, tu espères quelle réponse ?</p>
+    <div class="opts">
+      <button class="btn opt" type="button" data-hope="oui"><span>J'espère OUI</span></button>
+      <button class="btn opt" type="button" data-hope="non"><span>J'espère NON</span></button>
+      <button class="btn opt" type="button" data-hope="flou"><span>Aucune idée</span></button>
+    </div>
+    <p class="why">Technique de la pièce : ta réaction face au verdict révèle souvent ce que tu veux vraiment. Le hibou s'en souviendra.</p>
+    <div class="actions"><button class="btn ghost" type="button" data-hope="cancel">PAS ENCORE, JE RÉFLÉCHIS</button></div>
+  </div>
+</div>
+
+<div class="overlay" id="hover" hidden>
+  <div class="panel card wide" role="dialog" aria-modal="true" aria-labelledby="htitle">
+    <div class="vhead"><img class="vjudge small" data-img="judge" alt="" width="64" height="64"><h2 class="title" id="htitle">L'AIDE DU HIBOU</h2></div>
+    <p class="quip" id="hsum"></p>
+    <div class="hgrid" id="hgrid"></div>
+    <h3 class="title sm">QUESTIONS QUI FONT RÉFLÉCHIR</h3>
+    <ul class="psy" id="hpsy"></ul>
+    <div class="actions"><button class="btn" id="hclose" type="button">RETOUR AU TRIBUNAL</button></div>
+  </div>
+</div>
+
+<script>
+(() => {
+/* =========================================================
+   Données
+   ========================================================= */
+const WEIGHTS = [null,
+  {name:'Plume',   art:'une', hint:'à peine un détail'},
+  {name:'Caillou', art:'un',  hint:'ça compte un peu'},
+  {name:'Brique',  art:'une', hint:'du solide'},
+  {name:'Enclume', art:'une', hint:'très lourd'},
+  {name:'Éléphant',art:'un',  hint:'non négociable'}];
+const LEVELS = [[0,'Stagiaire du tribunal'],[30,'Apprentie juge'],[90,'Juge'],[200,'Juge suprême'],[380,'Grande Juge Cosmique'],[650,'Déesse de la Balance']];
+const BADGES = [
+  {id:'premier',   name:'Premier verdict',        desc:'Rendre ton tout premier verdict.'},
+  {id:'fonceuse',  name:'Fonceuse',               desc:'Rendre 10 verdicts OUI.'},
+  {id:'sage',      name:'Sage parmi les sages',   desc:'Rendre 10 verdicts NON.'},
+  {id:'indecise',  name:'Indécise chronique',     desc:'Obtenir 3 égalités.'},
+  {id:'destin',    name:'Main du destin',         desc:'Lancer la pièce du destin.'},
+  {id:'poidslourd',name:'Poids lourd',            desc:'Poser 5 éléphants dans une seule pesée.'},
+  {id:'plume',     name:'Légère comme une plume', desc:'Une pesée avec seulement des plumes (3 minimum).'},
+  {id:'ecrasement',name:'Écrasement total',       desc:'Gagner avec 90 % du poids ou plus.'},
+  {id:'expulsion', name:'Expulsion !',            desc:'Voir un camp éjecté de la balance.'},
+  {id:'photo',     name:'Photo-finish',           desc:"Un verdict gagné de justesse (moins de 10 % d'écart)."},
+  {id:'avocate',   name:'Avocate de talent',      desc:"Peser 8 arguments ou plus d'un coup."},
+  {id:'mauvaisefoi',name:'Mauvaise foi',          desc:"Un camp vide, l'autre avec 3 arguments ou plus."},
+  {id:'tetue',     name:'Pas convaincue',         desc:'Peser exactement la même question 3 fois de suite.'},
+  {id:'nuit',      name:'Oiseau de nuit',         desc:'Consulter le tribunal entre minuit et 5 h.'},
+  {id:'marathon',  name:'Marathonienne',          desc:'Rendre 25 verdicts.'},
+  {id:'intuition', name:'Intuition alignée',      desc:'Ton intuition et la balance disent la même chose.'},
+  {id:'coeur',     name:'Le cœur a ses raisons',  desc:'La balance contredit ce que tu espérais.'},
+  {id:'horizon',   name:'Tour d\'horizon',        desc:'Des arguments dans 5 domaines de vie différents ou plus.'},
+  {id:'archiviste',name:'Archiviste',             desc:'Dire au hibou, 5 fois, si ses verdicts étaient bons.'},
+  {id:'rebelle',   name:'Rebelle avisée',         desc:"Faire l'inverse du verdict… et que ce soit une bonne décision."}
+];
+const ACCESS = [null,'un nœud papillon','une toque de juge','une couronne','une cape cosmique','des étoiles divines'];
+
+/* =========================================================
+   Interrogatoire du hibou : le poids est CALCULÉ, jamais choisi.
+   poids = importance × durée (10-10-10) × probabilité × question bonus
+   ========================================================= */
+const CATS = [
+  {id:'argent',    label:'Argent',          pour:"Qu'est-ce que ça te rapporte ou te fait économiser ?",      contre:"Combien ça coûte, maintenant et sur la durée ?"},
+  {id:'temps',     label:'Temps',           pour:"Est-ce que ça te libère du temps ?",                         contre:"Combien de temps et d'énergie ça va te prendre ?"},
+  {id:'sante',     label:'Santé, énergie',  pour:"Est-ce que ça te fera du bien, au corps ou au moral ?",      contre:"Est-ce que ça risque de t'épuiser ou de te stresser ?"},
+  {id:'relations', label:'Relations',       pour:"Avec qui ça te rapproche ? Qui serait content ?",            contre:"Qui pourrait être déçu, blessé ou mis de côté ?"},
+  {id:'plaisir',   label:'Plaisir, envie',  pour:"Est-ce que tu en as vraiment envie, là, maintenant ?",       contre:"Qu'est-ce qui t'ennuie ou te dérange là-dedans ?"},
+  {id:'evolution', label:'Évolution perso', pour:"Qu'est-ce que tu apprendrais ? Qui deviendrais-tu ?",        contre:"Est-ce que ça t'empêche d'avancer sur autre chose ?"},
+  {id:'securite',  label:'Sécurité',        pour:"Qu'est-ce que ça sécurise ou stabilise ?",                   contre:"Quel est le pire scénario réaliste ?"},
+  {id:'valeurs',   label:'Valeurs',         pour:"Est-ce aligné avec la personne que tu veux être ?",          contre:"Est-ce que ça va contre quelque chose d'important pour toi ?"}
+];
+const QDEF = {
+  cat: {q:"Ça touche à quel domaine de ta vie ?", why:"Sert à repérer tes angles morts : le hibou te dira quels domaines tu as oubliés."},
+  imp: {q:"À quel point ça touche quelque chose d'important pour toi ?", why:"Ce qui touche tes valeurs pèse plus lourd que les détails pratiques.",
+        o:[["Bof, c'est un détail",1],["Un peu",2],["Beaucoup",3.5],["C'est essentiel, ça touche mes valeurs",5]]},
+  dur: {q:"Méthode 10-10-10 : jusqu'à quand ça comptera ?", why:"Méthode de Suzy Welch : on surestime presque toujours l'importance du moment présent.",
+        o:[["Dans 10 jours, je l'aurai oublié",.7],["Dans 10 mois, ça comptera encore",1],["Dans 10 ans, toujours",1.3]]},
+  cer: {q:"Est-ce que ça va vraiment arriver ?", why:"Biais d'optimisme et catastrophisme : le cerveau confond facilement « possible » et « certain ».",
+        o:[["Peu probable",.6],["Possible",.8],["Presque sûr",1]]},
+  regret:{q:"Si tu renonçais, tu regretterais ce point à 80 ans ?", why:"Minimisation du regret : on regrette davantage ce qu'on n'a pas osé que ce qu'on a tenté.",
+        o:[["Pas vraiment",.8],["Un peu",1],["Énormément",1.2]]},
+  amie:{q:"Si ta meilleure amie te donnait cet argument, tu le trouverais…", why:"Paradoxe de Salomon : on raisonne mieux pour les autres que pour soi. Prends du recul.",
+        o:[["Léger",.8],["Valable",1],["Très solide",1.2]]},
+  calme:{q:"Tu penserais pareil reposée, au calme, demain matin ?", why:"Faim, colère, solitude, fatigue : ces états (HALT) déforment le jugement sur le moment.",
+        o:[["Sûrement pas",.8],["Peut-être",1],["Oui, pareil",1.2]]},
+  origine:{q:"C'est ton envie à toi, ou ce que les autres attendent ?", why:"Théorie de l'autodétermination : ce qui vient de toi tient bien mieux dans la durée.",
+        o:[["Surtout les autres",.8],["Un mélange",1],["Moi, vraiment",1.2]]},
+  rattrapable:{q:"Si ça arrivait, ce serait rattrapable ?", why:"Une porte qu'on peut rouvrir mérite moins d'angoisse qu'une porte qui se ferme pour de bon.",
+        o:[["Facilement",.8],["Avec des efforts",1],["Irréversible",1.2]]},
+  peur:{q:"C'est un vrai problème, ou surtout la peur du changement ?", why:"Aversion à la perte : dans notre tête, une perte pèse environ deux fois plus qu'un gain équivalent.",
+        o:[["Surtout la peur",.8],["Un peu des deux",1],["Un vrai problème",1.2]]}
+};
+const XPOOL = {pour:['regret','amie','calme','origine'], contre:['rattrapable','peur','amie','calme']};
+const PSY = [
+  "Pré-mortem : imagine que tu as dit oui et que, dans un an, c'est un échec. Qu'est-ce qui a mal tourné ?",
+  "Que conseillerais-tu à ta meilleure amie, exactement dans la même situation ?",
+  "À 80 ans, tu regretterais plus de l'avoir fait, ou de ne pas l'avoir fait ?",
+  "Ne rien décider, c'est aussi décider. Qu'est-ce que tu perds si tu ne changes rien ?",
+  "Est-ce qu'il existe une troisième option, entre oui et non ?",
+  "Qu'est-ce qui te ferait changer d'avis ? Si rien, ce n'est peut-être pas vraiment une question.",
+  "Tu as faim, tu es fatiguée, en colère ou seule en ce moment ? Ça biaise tout. Garde-le en tête.",
+  "Parmi tes arguments, lesquels viennent d'une peur, et lesquels d'une envie ?"
+];
+function scoreOf(ans){
+  if (!ans) return null;
+  const v = QDEF.imp.o[ans.imp][1] * QDEF.dur.o[ans.dur][1] * QDEF.cer.o[ans.cer][1] * QDEF[ans.x].o[ans.xv][1];
+  return Math.max(.3, Math.min(10, Math.round(v/7.8*100)/10));   // ramené sur 10 (max brut = 5 × 1,3 × 1 × 1,2)
+}
+function classOf(s){ return s==null ? null : s<1.3?1 : s<2.3?2 : s<3.6?3 : s<5.2?4 : 5; }   // seuils calés pour ~20 % de chaque objet
+function applyScore(a){ a.score = scoreOf(a.ans); a.w = classOf(a.score); return a; }
+const fmt = v => String(Math.round(v*10)/10).replace('.', ',');
+const tieOf = (P,K) => Math.abs(P-K) <= .04*(P+K);
+const STORE = 'balance-ondine-v1';
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = s => document.querySelector(s);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const C = {ink:css('--ink'),pour:css('--pour'),pourD:css('--pour-d'),contre:css('--contre'),contreD:css('--contre-d'),volt:css('--volt'),violet:css('--violet'),soft:css('--soft')};
+const rnd = arr => arr[Math.floor(Math.random()*arr.length)];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+const SAMPLE = {
+  question:"Est-ce que j'adopte un chaton ?",
+  pour:[{t:'Ronronnements illimités',ans:{cat:'plaisir',imp:2,dur:1,cer:2,x:'regret',xv:1}},
+        {t:"Quelqu'un pour m'accueillir le soir",ans:{cat:'relations',imp:3,dur:2,cer:2,x:'amie',xv:1}},
+        {t:'Des photos beaucoup trop mignonnes',ans:{cat:'plaisir',imp:0,dur:0,cer:2,x:'calme',xv:2}}],
+  contre:[{t:'Le canapé va souffrir',ans:{cat:'argent',imp:1,dur:1,cer:2,x:'rattrapable',xv:0}},
+          {t:'La litière à changer',ans:{cat:'temps',imp:1,dur:2,cer:2,x:'peur',xv:2}},
+          {t:'Les vacances, plus compliquées',ans:{cat:'temps',imp:2,dur:2,cer:1,x:'amie',xv:1}}]
+};
+let uid = 1;
+const validAns = a => a && QDEF[a.x] && [a.imp,a.dur,a.cer,a.xv].every(n => Number.isInteger(n) && n>=0) ? a : null;
+const mk = (t, ans=null) => applyScore({id:uid++, t, ans:validAns(ans)});
+const freshStats = () => ({games:0,oui:0,non:0,ties:0,flips:0,xp:0,badges:[],lastSig:'',streak:0});
+let state = {question:'', pour:[], contre:[], sample:false, stats:freshStats(), archive:[]};
+let lastHope = null;
+
+function load(data){
+  let saved = null;
+  if (data && data.state) saved = data.state;
+  else { try { saved = JSON.parse(localStorage.getItem(STORE) || 'null'); } catch(e){} }
+  if (saved && (saved.pour || saved.contre)) {
+    state.question = saved.question || '';
+    state.pour = (saved.pour||[]).map(a=>mk(a.t,a.ans));
+    state.contre = (saved.contre||[]).map(a=>mk(a.t,a.ans));
+    state.sample = !!saved.sample;
+    state.stats = Object.assign(freshStats(), saved.stats || {});
+    if (!saved.stats && saved.count) state.stats.games = saved.count|0;
+    state.archive = Array.isArray(saved.archive) ? saved.archive.filter(e => e && e.q && e.v) : [];
+  } else {
+    state.question = SAMPLE.question;
+    state.pour = SAMPLE.pour.map(a=>mk(a.t,a.ans));
+    state.contre = SAMPLE.contre.map(a=>mk(a.t,a.ans));
+    state.sample = true;
+  }
+}
+function serial(){
+  return {question:state.question, sample:state.sample, stats:state.stats, archive:state.archive,
+    pour:state.pour.map(a=>({t:a.t,ans:a.ans})), contre:state.contre.map(a=>({t:a.t,ans:a.ans}))};
+}
+function save(){ try { localStorage.setItem(STORE, JSON.stringify(serial())); } catch(e){} }
+const total = side => state[side].reduce((s,a)=>s+(a.score||0),0);
+
+/* =========================================================
+   Son : bruitages pré-rendus (SoundWeaver + recettes maison)
+   WAV 16 bits mono 22 kHz dans assets/sons/, chargés dès l'ouverture.
+   Lecture par Web Audio pour garder le gain maître et le déblocage iPhone.
+   ========================================================= */
+const SND_NAMES = ['add','boing','coin','del','drop1','drop2','drop3','drop4','drop5','flip','gavel','go','levelup','lose','nope','on','pick','slowmo','tick','tie','trophy','type','vdevil','vjudge','whistle','whoosh','win'];
+const raw = {};   // octets WAV déjà téléchargés, décodés à la première lecture
+function fetchSounds(){
+  SND_NAMES.forEach(n => {
+    fetch('assets/sons/'+n+'.wav').then(r => r.ok ? r.arrayBuffer() : null).then(b => { if (b) raw[n] = new Uint8Array(b); }).catch(()=>{});
+  });
+}
+const VOL = {add:.4,del:.42,pick:.32,tick:.5,type:.16,nope:.45,on:.42,flip:.32,coin:.5,trophy:.55,levelup:.55,whoosh:.32,
+  drop1:.4,drop2:.48,drop3:.55,drop4:.62,drop5:.75,whistle:.34,gavel:.7,win:.6,lose:.55,tie:.5,boing:.45,slowmo:.38,go:.42,vjudge:.2,vdevil:.16};
+let actx = null, master = null, muted = false, unlocked = false;
+const bufs = {};
+function ac(){
+  if (muted) return null;
+  try {
+    if (!actx){
+      actx = new (window.AudioContext||window.webkitAudioContext)();
+      master = actx.createGain(); master.gain.value = 1.1;
+      let out = actx.destination;
+      try { const comp = actx.createDynamicsCompressor(); comp.threshold.value = -10; comp.ratio.value = 4; comp.connect(out); out = comp; } catch(e){}
+      master.connect(out);
+    }
+    if (actx.state !== 'running') actx.resume();
+  } catch(e){ return null; }
+  return actx;
+}
+/* Décode un WAV PCM 16 bits à la main : pas de decodeAudioData (capricieux sur vieux Safari). */
+function wavBuf(a, u){
+  const v = new DataView(u.buffer, u.byteOffset, u.byteLength), sr = v.getUint32(24, true);
+  let p = 12, off = 44, len = u.length-44;
+  while (p+8 <= u.length){ const id = String.fromCharCode(u[p],u[p+1],u[p+2],u[p+3]), sz = v.getUint32(p+4,true); if (id==='data'){ off=p+8; len=Math.min(sz,u.length-off); break; } p += 8+sz; }
+  const n = len>>1, b = a.createBuffer(1, n, sr), d = b.getChannelData(0);
+  for (let i=0;i<n;i++) d[i] = v.getInt16(off+i*2, true)/32768;
+  return b;
+}
+function play(id, {rate=1, vol=1, at=0}={}){
+  const a = ac(); if (!a) return;
+  let b = bufs[id];
+  if (!b){ if (!raw[id]) return; try { b = bufs[id] = wavBuf(a, raw[id]); } catch(e){ return; } }
+  try {
+    const s = a.createBufferSource(), g = a.createGain();
+    s.buffer = b; s.playbackRate.value = rate; g.gain.value = (VOL[id]||.4)*vol;
+    s.connect(g).connect(master); s.start(a.currentTime + at);
+  } catch(e){}
+}
+function preload(){ if (!actx) return; SND_NAMES.forEach((k,i) => setTimeout(()=>{ if (!bufs[k] && raw[k]) try { bufs[k] = wavBuf(actx, raw[k]); } catch(e){} }, 30+i*15)); }
+function unlock(){
+  if (unlocked || muted) return;
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch(e){}
+  const a = ac(); if (!a) return;
+  try { const b = a.createBuffer(1,1,22050), s = a.createBufferSource(); s.buffer=b; s.connect(a.destination); s.start(0); } catch(e){}
+  if (a.state === 'running'){ unlocked = true; preload(); }
+  else a.resume().then(()=>{ unlocked = a.state==='running'; if (unlocked) preload(); }).catch(()=>{});
+}
+['pointerdown','touchend','keydown','click'].forEach(ev => addEventListener(ev, unlock, {capture:true, passive:true}));
+const jit = (k=.08) => 1 - k/2 + Math.random()*k;
+const sfx = {
+  add:  () => play('add',{rate:jit()}),                       // pop-bubble
+  del:  () => play('del'),                                     // trash-crumple
+  pick: (w) => play('pick',{rate:.72+w*.12}),                  // select-item, plus grave = plus léger
+  tick: (i=0) => play('tick',{rate:1+i*.14}),                  // click-deep, monte à chaque chiffre
+  go:   () => play('go'),
+  nope: () => play('nope'),                                    // invalid-thunk
+  drop: (w) => play('drop'+w,{rate:jit(.06)}),
+  whistle: (w) => play('whistle',{rate:w===5?.86:1}),
+  boing: () => { play('boing'); play('whoosh',{at:.18}); },
+  gavel: () => play('gavel'),
+  slowmo: () => play('slowmo'),
+  win:  () => play('win'),
+  lose: () => play('lose'),
+  tie:  () => play('tie'),
+  coin: () => play('coin'),                                    // coin-collect
+  spin: () => { for (let i=0;i<8;i++) play('flip',{at:i*.18, rate:1+i*.05}); },
+  trophy: (at=1.1) => play('trophy',{at}),                     // achievement
+  levelup: (at=1.7) => play('levelup',{at}),                   // level-up
+  on:   () => play('on'),                                      // toggle-switch-on
+  type: () => play('type',{rate:jit(.25)}),
+  voice: (devil) => play(devil?'vdevil':'vjudge',{rate: devil ? 1+Math.random()*.4 : .84+Math.random()*.3})
+};
+
+/* =========================================================
+   Le Juge Hibou (sprite canvas)
+   ========================================================= */
+const jc = $('#judge'), jg = jc.getContext('2d'), tj = $('#tjudge').getContext('2d');
+const JW = 72, JH = 44, JX = 42;
+const judge = {expr:'neutral', until:0, look:0, lookY:0, blinkAt:0, blinkEnd:0, gav:2.3, gavTarget:2.3, talkUntil:0, devilUntil:0, devilTalk:0};
+function jp(x,y,w,h,c){ jg.fillStyle=c; jg.fillRect(Math.round(x),Math.round(y),w,h); }
+function jdisc(cx,cy,r,c){ for (let y=-r;y<=r;y++){ const w=Math.floor(Math.sqrt(r*r-y*y)+.35); jp(cx-w,cy+y,w*2+1,1,c); } }
+function setExpr(e, ms=2600){ judge.expr=e; judge.until = ms===Infinity ? Infinity : performance.now()+ms; }
+const BODY = '#B8B2FF', BELLY = '#E8E4FF';
+const DEVIL = ['.k.......k.','kpk.....kpk','.kpkkkkkpk.','..kpppppk..','.kpwkpkwpk.','.kpppppppk.','.kppkkkppk.','..kpppppk..','...kkkkk...'];
+function drawJudge(now){
+  jg.clearRect(0,0,JW,JH);
+  let e = now < judge.until ? judge.expr : 'neutral';
+  if (now > judge.blinkAt){ judge.blinkEnd = now+130; judge.blinkAt = now+2200+Math.random()*3000; }
+  const blinking = now < judge.blinkEnd && (e==='neutral'||e==='think'||e==='stern');
+  const cx = JX;
+  // antenne + oreilles
+  jp(cx-1,3,2,5,C.ink); jp(cx-2,0,4,4,C.ink); jp(cx-1,1,2,2, Math.floor(now/400)%2?C.volt:'#fff');
+  jp(cx-15,4,4,7,C.ink); jp(cx-14,6,2,4,BODY); jp(cx+11,4,4,7,C.ink); jp(cx+12,6,2,4,BODY);
+  const lvl = levelOf(state.stats.xp);
+  // niveau 5 : cape cosmique étoilée derrière le hibou
+  if (lvl >= 4){
+    jp(cx-21,22,42,16,C.ink); jp(cx-20,23,40,15,'#3B2A8F');
+    [[-17,26],[-13,32],[13,27],[17,33],[-9,35],[10,35]].forEach(([dx,dy],k) => jp(cx+dx,dy,1,1, Math.floor(now/300+k)%3 ? '#fff' : C.volt));
+  }
+  // tête-corps
+  jdisc(cx,23,16,C.ink); jdisc(cx,23,15,BODY); jdisc(cx,33,9,BELLY);
+  // ailes
+  jp(cx-19,24,5,11,C.ink); jp(cx-18,25,3,9,'#9C93F5');
+  // yeux
+  const L = Math.max(-1,Math.min(1,judge.look)), ly = judge.lookY;
+  [cx-7, cx+7].forEach((ex,i) => {
+    const ey = 19;
+    jdisc(ex,ey,6,C.ink); jdisc(ex,ey,5,'#fff');
+    if (blinking){ jdisc(ex,ey,5,BODY); jp(ex-4,ey,9,1,C.ink); return; }
+    if (e==='happy'){ jdisc(ex,ey,5,BODY); [[-4,2],[-3,1],[-2,0],[-1,-1],[0,-1],[1,-1],[2,0],[3,1],[4,2]].forEach(([dx,dy])=>jp(ex+dx,ey+dy,1,2,C.ink)); return; }
+    if (e==='shock'){ jp(ex,ey,1,1,C.ink); jp(ex-1,ey-1,3,3,C.ink); jp(ex,ey,1,1,'#fff'); return; }
+    let px_ = ex-1+L*2, py_ = ey-1+ly;
+    if (e==='bored'){ py_ = ey+1; }
+    if (e==='think'){ px_ = ex; py_ = ey-3; }
+    jp(px_,py_,3,3,C.ink); jp(px_+1,py_,1,1,'#fff');
+    if (e==='bored'){ for (let y=-5;y<0;y++){ const w=Math.floor(Math.sqrt(25-y*y)+.35); jp(ex-w,ey+y,w*2+1,1,BODY);} jp(ex-5,ey-1,11,1,C.ink); }
+    if (e==='sus'){ if (i===0){ for (let y=-5;y<-1;y++){ const w=Math.floor(Math.sqrt(25-y*y)+.35); jp(ex-w,ey+y,w*2+1,1,BODY);} jp(ex-5,ey-2,11,2,C.ink); } else { jp(ex-4,ey-8,3,1,C.ink); jp(ex-1,ey-9,5,1,C.ink); } }
+    if (e==='stern'){ const s = i===0?1:-1; for (let k=0;k<8;k++) jp(ex-4*s+k*s, ey-8+Math.floor(k/2.6), 1, 2, C.ink); }
+  });
+  // bec
+  const open = e==='shock' || e==='bored' || (now < judge.talkUntil && Math.floor(now/90)%2===0);
+  if (open){ jp(cx-3,26,6,7,C.ink); jp(cx-2,27,4,1,C.volt); jp(cx-2,28,4,3,'#5A1730'); jp(cx-2,31,4,1,C.volt); }
+  else { jp(cx-3,26,6,4,C.ink); jp(cx-2,30,4,2,C.ink); jp(cx-2,27,4,2,C.volt); jp(cx-1,29,2,2,C.volt); }
+  // jabot de juge
+  jp(cx-4,35,8,1,C.ink); jp(cx-3,36,6,2,'#fff');
+  // les accessoires gagnés en montant de niveau
+  if (lvl >= 1){ jp(cx-6,33,4,4,C.ink); jp(cx+2,33,4,4,C.ink); jp(cx-5,34,3,2,C.contre); jp(cx+3,34,3,2,C.contre); jp(cx-2,33,4,4,C.ink); jp(cx-1,34,2,2,C.contreD); }
+  if (lvl === 2){ jp(cx-9,3,18,5,C.ink); jp(cx-7,1,14,3,C.ink); jp(cx-8,4,16,1,'#3B3A5A'); jp(cx+7,5,2,5,C.volt); }
+  if (lvl >= 3){
+    jp(cx-9,2,18,6,C.ink); jp(cx-8,3,16,4,C.volt);
+    [[-9,-1],[-1,-2],[7,-1]].forEach(([dx,dy]) => { jp(cx+dx,dy+2,3,3,C.ink); jp(cx+dx+1,dy+3,1,2,C.volt); });
+    jp(cx-5,4,2,2,C.contre); jp(cx-1,4,2,2,C.pour); jp(cx+3,4,2,2,C.contre);
+  }
+  if (lvl >= 5){
+    for (let k=0;k<5;k++){ const a = now/700 + k*1.256, sx = cx + Math.cos(a)*24, sy = 22 + Math.sin(a)*14;
+      if (sx>0 && sx<JW-1) { jp(sx,sy,1,1,C.volt); if (Math.floor(now/200+k)%2) { jp(sx-1,sy,3,1,C.volt); jp(sx,sy-1,1,3,C.volt); } } }
+  }
+  // bureau
+  jp(0,37,JW,7,C.ink); jp(0,38,JW,6,'#B9774F'); jp(0,38,JW,1,'#E2A57A');
+  jp(cx+15,35,12,2,C.ink); jp(cx+16,35,10,1,'#7A4A2A');
+  // marteau
+  judge.gav += (judge.gavTarget - judge.gav)*0.35;
+  const a = judge.gav, ox = cx+16, oy = 28, dx = Math.sin(a), dy = -Math.cos(a), qx = Math.cos(a), qy = Math.sin(a);
+  for (let t=0;t<11;t++){ jp(ox+dx*t-1, oy+dy*t-1, 2, 2, C.ink); }
+  for (let t=0;t<11;t++){ jp(ox+dx*t, oy+dy*t, 1, 1, '#C98B5A'); }
+  const hx = ox+dx*12, hy = oy+dy*12;
+  for (let u=-5;u<=5;u++) for (let v=-2;v<=2;v++) jp(hx+qx*u+dx*v, hy+qy*u+dy*v, 1, 1, Math.abs(u)>=4||Math.abs(v)>=2?C.ink:'#8A5A3B');
+  jp(cx+13,26,6,8,C.ink); jp(cx+14,27,4,6,'#9C93F5');
+  // diablotin
+  if (now < judge.devilUntil){
+    const talking = now < judge.devilTalk;
+    if (imgs.devil){ const bob = Math.round(Math.sin(now/(talking?55:140))*2); jg.drawImage(imgs.devil, -3, 11+bob); }
+    else {
+    const bob = Math.round(Math.sin(now/120)*1.5), s = 2;
+    DEVIL.forEach((r,j)=>[...r].forEach((ch,i)=>{ if(ch==='.') return;
+      let c = ch==='k'?C.ink:ch==='w'?'#fff':C.contre;
+      if (j===6 && ch==='k' && now<judge.devilTalk && Math.floor(now/90)%2) c = '#5A1730';
+      jp(1+i*s, 8+bob+j*s, s, s, c); }));
+    }
+  }
+  if (!$('#toast').hidden){ tj.clearRect(0,0,JW,JH); tj.drawImage(jc,0,0); }
+}
+
+/* Bulle de dialogue */
+let sayTok = 0, toastTimer = null, judgeVisible = true, devilTimer = null;
+try {
+  new IntersectionObserver(es => { judgeVisible = es[0].isIntersecting; if (judgeVisible) hideToast(); }, {threshold:.6}).observe(jc);
+} catch(e){}
+let toastOutT = null;
+function hideToast(){
+  const t = $('#toast'); if (t.hidden) return;
+  t.classList.add('out'); clearTimeout(toastOutT);
+  toastOutT = setTimeout(()=>{ t.hidden = true; t.classList.remove('out'); }, 170);
+}
+function showToastEl(){ const t = $('#toast'); clearTimeout(toastOutT); t.classList.remove('out'); t.hidden = false; }
+async function say(text, who='judge', expr=null, ms){
+  const tok = ++sayTok, isDevil = who==='devil';
+  const label = isDevil ? 'AVOCAT DU DIABLE' : 'JUGE HIBOU';
+  ['#bubble','#tbubble'].forEach(s => { const b = $(s); b.classList.toggle('devil', isDevil); if (!reduce){ b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop'); } });
+  $('#who').textContent = label; $('#twho').textContent = label;
+  if (!isDevil && expr) setExpr(expr, ms || 600 + text.length*45);
+  if (isDevil){ judge.devilUntil = performance.now() + 1800 + text.length*45; setExpr('sus', 1800 + text.length*45); }
+  const showToast = !judgeVisible && $('#overlay').hidden;
+  if (showToast){ showToastEl(); clearTimeout(toastTimer); }
+  const el = $('#say'), tel = $('#tsay'); let out = '';
+  for (const ch of text){
+    if (tok !== sayTok) return;
+    out += ch; el.textContent = out; tel.textContent = out;
+    if (isDevil) judge.devilTalk = performance.now()+120; else judge.talkUntil = performance.now()+120;
+    if (ch !== ' ' && /[\p{L}\p{N}]/u.test(ch) && out.length % 2) sfx.voice(isDevil);
+    await sleep(reduce?0:22);
+  }
+  if (showToast) toastTimer = setTimeout(()=>{ if (tok===sayTok) hideToast(); }, 2600);
+}
+const SEALED = ["Noté. Le poids est scellé dans l'enveloppe.","Merci pour ta déposition. Le poids reste secret.",
+  "Le greffier a tout noté. Même toi, tu ne connais pas le poids.","Interrogatoire terminé. Le verdict gardera la surprise."];
+const DEVIL_LINES = [
+  (a)=>`« ${a.t} »… Tu dirais ça devant ta mère ?`,
+  (a)=>`Et le contraire de « ${a.t} », ça ne pourrait pas être vrai aussi ?`,
+  (a)=>`« ${a.t} » ? Moi je dis que c'est une excuse déguisée.`,
+  (a)=>`Et si « ${a.t} » c'était juste une envie du moment ?`,
+  (a)=>`« ${a.t} ». Tu as une preuve, ou seulement une intuition ?`,
+  (a)=>`« ${a.t} »… C'est toi qui penses ça, ou quelqu'un te l'a soufflé ?`];
+const anyOpen = () => ['#overlay','#tover','#qover','#hover','#iover','#aover','#sover','#iosover','#splash'].some(s => !$(s).hidden);
+const allArgs = () => [...state.pour.map(a=>({...a,s:'pour'})), ...state.contre.map(a=>({...a,s:'contre'}))];
+const coveredCats = () => new Set(allArgs().map(a=>a.ans&&a.ans.cat).filter(Boolean));
+
+/* Relances du hibou : domaines oubliés, camp vide, questions de psychologie */
+function relance(){
+  if (busy || anyOpen()) return;
+  const P = state.pour.length, K = state.contre.length;
+  if (!P && !K){ say("Commence par un argument, n'importe lequel. Le tribunal fera le tri.", 'judge', 'happy'); return; }
+  if (!K){ const c = rnd(CATS); say(`Aucun argument CONTRE ? Même les meilleures idées ont un prix. ${c.label} : ${c.contre}`, 'judge', 'sus'); return; }
+  if (!P){ const c = rnd(CATS); say(`Aucun argument POUR ? Il y a forcément une raison d'y penser. ${c.label} : ${c.pour}`, 'judge', 'sus'); return; }
+  const un = CATS.filter(c => !coveredCats().has(c.id));
+  if (un.length && Math.random() < .7){
+    const c = rnd(un), side = P <= K ? 'pour' : 'contre';
+    say(`Et côté ${c.label.toLowerCase()} ? ${c[side]}`, 'judge', 'think');
+  } else say(rnd(PSY), 'judge', 'think');
+}
+let lastAct = performance.now(), idleRelances = 0;
+['pointerdown','keydown','input'].forEach(ev => addEventListener(ev, () => { lastAct = performance.now(); }, {passive:true, capture:true}));
+setInterval(() => {
+  if (phase==='idle' && !busy && !anyOpen() && idleRelances < 4 && performance.now()-lastAct > 40000){ idleRelances++; lastAct = performance.now(); relance(); }
+}, 5000);
+
+/* L'interrogatoire */
+let qs = null;
+function openInterro(side, arg, onDone){
+  const idx = Math.max(0, state[side].indexOf(arg)), pool = XPOOL[side], xk = pool[idx % pool.length];
+  qs = {side, arg, steps:['cat','imp','dur','cer',xk], i:0, ans:{x:xk}, onDone};
+  $('#qover').hidden = false; renderQ();
+  judge.look = side==='pour' ? -1 : 1; setExpr('think', 4000);
+}
+function renderQ(){
+  const k = qs.steps[qs.i], d = QDEF[k], n = qs.steps.length;
+  $('#qstep').textContent = `INTERROGATOIRE · ${qs.i+1}/${n}`;
+  const tag = $('#qside'); tag.textContent = qs.side==='pour' ? 'ARGUMENT POUR' : 'ARGUMENT CONTRE'; tag.className = 'sidetag '+qs.side;
+  $('#qarg').textContent = '« '+qs.arg.t+' »';
+  $('#qq').textContent = d.q; $('#qwhy').textContent = d.why;
+  $('#qprog').innerHTML = qs.steps.map((_,j)=>`<i class="${j<=qs.i?'on':''}"></i>`).join('');
+  const opts = k==='cat' ? CATS.map(c=>c.label) : d.o.map(o=>o[0]);
+  const box = $('#qopts'); box.className = 'opts' + (k==='cat' ? ' cats' : '');
+  box.innerHTML = opts.map((o,j)=>`<button class="btn opt" type="button" data-j="${j}">${k==='cat'?'':`<kbd>${j+1}</kbd>`}<span>${esc(o)}</span></button>`).join('');
+  box.querySelectorAll('.opt').forEach(b => b.onclick = () => answerQ(+b.dataset.j));
+  if (!reduce){ const c = $('#qcard'); c.classList.remove('qin'); void c.offsetWidth; c.classList.add('qin'); }
+  const first = box.querySelector('.opt'); if (first) first.focus({preventScroll:true});
+}
+function answerQ(j){
+  if (!qs) return;
+  const k = qs.steps[qs.i];
+  if (k==='cat') qs.ans.cat = CATS[j].id; else if (k===qs.ans.x) qs.ans.xv = j; else qs.ans[k] = j;
+  sfx.pick(Math.min(5, j+1));
+  qs.i++;
+  if (qs.i < qs.steps.length){ renderQ(); return; }
+  const {arg, side, ans, onDone} = qs; qs = null;
+  arg.ans = ans; applyScore(arg);
+  closeQ(); touch(); renderList(side);
+  say(rnd(SEALED), 'judge', 'happy', 1800);
+  if (onDone){ setTimeout(onDone, reduce ? 0 : 450); return; }
+  clearTimeout(devilTimer);
+  devilTimer = setTimeout(() => {
+    if (busy || anyOpen()) return;
+    if (allArgs().length >= 2 && Math.random() < .35) say(rnd(DEVIL_LINES)(arg), 'devil'); else relance();
+  }, 2600);
+}
+function closeQ(){ $('#qover').hidden = true; }
+function cancelQ(){
+  if (!qs) return; const t = qs.arg.t; qs = null; closeQ();
+  say(`« ${t} » attend son interrogatoire. Touche-le quand tu veux.`, 'judge', 'neutral');
+}
+
+/* L'aide du hibou : schémas d'arguments par domaine + questions qui font réfléchir */
+function openHelp(){
+  const cov = coveredCats();
+  $('#hsum').textContent = `Tu as exploré ${cov.size} domaine${cov.size>1?'s':''} sur ${CATS.length}. Touche une question pour écrire l'argument dans la bonne colonne.`;
+  $('#hgrid').innerHTML = CATS.map(c => `<div class="hcat${cov.has(c.id)?' done':''}"><b>${esc(c.label.toUpperCase())}${cov.has(c.id)?' · EXPLORÉ':''}</b>
+    <button class="hp pour" type="button" data-side="pour" data-c="${c.id}">${esc(c.pour)}</button>
+    <button class="hp contre" type="button" data-side="contre" data-c="${c.id}">${esc(c.contre)}</button></div>`).join('');
+  $('#hpsy').innerHTML = PSY.map(p => `<li>${esc(p)}</li>`).join('');
+  $('#hgrid').querySelectorAll('.hp').forEach(b => b.onclick = () => {
+    const c = CATS.find(x=>x.id===b.dataset.c), side = b.dataset.side, inp = $('#in-'+side);
+    $('#hover').hidden = true; inp.placeholder = c[side]; inp.focus();
+    say(`${c.label} : ${c[side]}`, 'judge', 'think');
+  });
+  $('#hover').hidden = false; $('#hclose').focus();
+}
+
+/* Technique de la pièce : on demande ce qu'elle espère AVANT le verdict */
+let hopeRes = null;
+function askHope(){
+  return new Promise(res => { hopeRes = res; $('#iover').hidden = false; $('#iover .opt').focus(); });
+}
+document.querySelectorAll('#iover [data-hope]').forEach(b => b.onclick = () => {
+  const v = b.dataset.hope; $('#iover').hidden = true; sfx.pick(3);
+  const r = hopeRes; hopeRes = null; r && r(v==='cancel' ? null : v);
+});
+$('#qcancel').onclick = cancelQ;
+$('#helpBtn').onclick = () => { if (!busy) openHelp(); };
+$('#hclose').onclick = () => { $('#hover').hidden = true; };
+
+/* =========================================================
+   Interface
+   ========================================================= */
+function renderList(side){
+  const ul = $('#list-'+side); ul.innerHTML='';
+  if (!state[side].length) ul.innerHTML = `<li class="empty">${side==='pour'?'Aucun argument pour. Cherche bien.':'Aucun argument contre. Vraiment ?'}</li>`;
+  state[side].forEach(a => {
+    const li = document.createElement('li'); li.className='arg'+(a.ans?'':' pending');
+    const txt = document.createElement('span'); txt.className='txt'; txt.textContent = a.t;
+    const wn = document.createElement('span'); wn.className='wname';
+    const cat = a.ans && CATS.find(c=>c.id===a.ans.cat);
+    wn.textContent = a.ans ? `Pesé en secret · ${cat?cat.label:''}` : "À interroger : touche ↻";
+    txt.appendChild(wn);
+    const redo = document.createElement('button'); redo.type='button'; redo.className='del redo'; redo.textContent='↻';
+    redo.setAttribute('aria-label', (a.ans?'Refaire l\'interrogatoire : ':'Interroger : ')+a.t);
+    redo.onclick = () => { if (busy || anyOpen()) return; openInterro(side, a); };
+    const del = document.createElement('button'); del.type='button'; del.className='del'; del.textContent='✕';
+    del.setAttribute('aria-label','Supprimer : '+a.t);
+    del.onclick = () => { if (busy) return; state[side]=state[side].filter(x=>x!==a); sfx.del(); touch(); renderList(side);
+      say(rnd(["Retiré du dossier. Personne n'a rien vu.","Effacé. Le greffier fait semblant de rien.","Pouf. Cet argument n'a jamais existé."]), 'judge', 'think'); };
+    li.append(txt,redo,del); ul.appendChild(li);
+  });
+  const n = state[side].length;
+  $('#sum-'+side).textContent = `${n} ARG · ???`;
+}
+function levelOf(xp){ let i=0; while (i+1<LEVELS.length && xp>=LEVELS[i+1][0]) i++; return i; }
+function renderHud(){
+  const s = state.stats, i = levelOf(s.xp), cur = LEVELS[i][0], nxt = LEVELS[i+1] ? LEVELS[i+1][0] : null;
+  $('#lvlName').textContent = `NIV ${i+1} · ${LEVELS[i][1].toUpperCase()}`;
+  $('#xpFill').style.width = (nxt ? Math.round((s.xp-cur)/(nxt-cur)*100) : 100) + '%';
+  $('#xpTxt').textContent = `${s.xp}${nxt?' / '+nxt:''} XP · ${s.games} verdict${s.games>1?'s':''}`;
+  $('#tbtn').textContent = `TROPHÉES ${s.badges.length}/${BADGES.length}`;
+}
+function renderAll(){
+  $('#q').value = state.question;
+  renderList('pour'); renderList('contre');
+  $('#sampleBar').hidden = !state.sample;
+  renderHud();
+}
+function touch(){ state.sample=false; $('#sampleBar').hidden=true; save(); }
+
+['pour','contre'].forEach(side => {
+  $('#form-'+side).addEventListener('submit', e => {
+    e.preventDefault(); if (busy || anyOpen()) return;
+    const inp = $('#in-'+side), t = inp.value.trim();
+    if (!t) { weigh(); return; }
+    const a = mk(t); state[side].push(a); inp.value=''; inp.placeholder = side==='pour' ? 'Un argument pour…' : 'Un argument contre…';
+    sfx.add(); touch(); renderList(side); idleRelances = 0;
+    openInterro(side, a);
+  });
+});
+$('#q').addEventListener('input', e => { state.question = e.target.value; touch(); });
+$('#q').addEventListener('keydown', e => { if (e.key==='Enter'){ e.preventDefault(); $('#in-pour').focus(); say("Question enregistrée. Maintenant, les arguments !", 'judge', 'happy'); } });
+$('#clearAll').onclick = () => {
+  state.question=''; state.pour=[]; state.contre=[]; state.sample=false; save(); renderAll(); sfx.del(); $('#q').focus();
+  say("Dossier vierge. Le tribunal t'écoute.", 'judge', 'happy');
+};
+$('#mute').onclick = e => {
+  muted = !muted; e.currentTarget.textContent = 'SON : '+(muted?'OFF':'ON'); e.currentTarget.setAttribute('aria-pressed', muted);
+  if (!muted){ unlocked = false; unlock(); sfx.on(); }
+};
+$('#go').onclick = () => weigh();
+$('#tbtn').onclick = () => openTrophies();
+$('#tclose').onclick = () => { $('#tover').hidden = true; };
+document.addEventListener('keydown', e => {
+  if (!$('#splash').hidden){ if (e.key==='Enter' || e.key===' '){ e.preventDefault(); closeSplash(); } return; }
+  for (const s of ['#sover','#iosover','#aover']) if (!$(s).hidden){ if (e.key==='Escape') $(s).hidden = true; return; }
+  if (!$('#qover').hidden){
+    if (e.key==='Escape') cancelQ();
+    else if (/^[1-9]$/.test(e.key) && qs){ const j = +e.key-1, n = qs.steps[qs.i]==='cat' ? CATS.length : QDEF[qs.steps[qs.i]].o.length; if (j<n){ e.preventDefault(); answerQ(j); } }
+    return;
+  }
+  if (!$('#iover').hidden){ if (e.key==='Escape'){ const r = hopeRes; hopeRes = null; $('#iover').hidden = true; r && r(null); } return; }
+  if (!$('#hover').hidden){ if (e.key==='Escape') $('#hover').hidden = true; return; }
+  if (!$('#tover').hidden){ if (e.key==='Escape') $('#tover').hidden = true; return; }
+  if (!$('#overlay').hidden){ if (e.key==='Escape') closeVerdict(); return; }
+  if (e.key!=='Enter') return;
+  if (e.ctrlKey || e.metaKey){ e.preventDefault(); weigh(); return; }
+  const tag = e.target.tagName;
+  if (tag==='INPUT' || tag==='BUTTON' || tag==='TEXTAREA') return;
+  e.preventDefault(); weigh();
+});
+
+/* =========================================================
+   Balance pixel + objets
+   ========================================================= */
+const cv = $('#scale'), g = cv.getContext('2d');
+const W = 200, H = 130, CX = 100, CY = 34, L = 62, PLATE_DROP = 30, PLATE_W = 38, MAX_H = 46;
+const PAL = {k:C.ink,w:'#FFFFFF',g:'#CFCBEA',d:'#8F8ABD',b:'#F07A45',B:'#B5481F',r:'#FFB3CB',y:C.volt};
+const SPR = [null,
+  ['.........kk','.......kkwk','.....kkwwk.','...kkwwgk..','.kkwwgkk...','kkkkk......'],
+  ['..kkkkk..','.kggwggk.','kggggggdk','kgggggddk','.kddddkk.','..kkkk...'],
+  ['kkkkkkkkkkkk','kbbbbbkbbbbk','kBBBBBkBBBBk','kkkkkkkkkkkk','kbbkbbbbbkbk','kBBkBBBBBkBk','kkkkkkkkkkkk'],
+  ['..kkkkkkkkkkkk.','kkgwwwwwwwwwwgk','.kkddddddddddk.','....kkddddkk...','.....kddddk....','....kddddddk...','...kddddddddk..','...kkkkkkkkkk..'],
+  ['........kkkkkkkk..','......kkggggggggk.','.kkk.kgggggggggggk','kgrgkggggggggggggk','kgrgkgggwkgggggggk','kgggkggggggggggggk',
+   '.kkgggggggggggggdk','..kgkggggggggggddk','..kgkkdddddddddddk','..kk.kggk..kggk.k.','.....kggk..kggk...','.....kkkk..kkkk...']
+].map(r => r && ({rows:r, w:Math.max(...r.map(x=>x.length)), h:r.length}));
+
+/* Sprites dessinés avec SpriteCook (intégrés dans la page) */
+const IMG = {
+  judge:'assets/sprites/judge.png',
+  elephant:'assets/sprites/elephant.png',
+  anvil:'assets/sprites/anvil.png',
+  devil:'assets/sprites/devil.png'
+};
+const imgs = {};
+Object.entries(IMG).forEach(([k,src]) => {
+  const im = new Image();
+  im.onload = () => {
+    imgs[k] = im;
+    if (k==='elephant') SPR[5] = {img:im, w:im.width, h:im.height};
+    if (k==='anvil')    SPR[4] = {img:im, w:im.width, h:im.height};
+  };
+  im.src = src;
+});
+
+let phase = 'idle';            // idle | weighing | done
+let angle = 0, vel = 0, target = 0, ts = 1;
+let pack = {pour:{rows:[],items:[]}, contre:{rows:[],items:[]}};
+let falling = [], flyers = [], dust = [];
+const dip = {pour:0, contre:0};   // petit enfoncement du plateau à chaque impact
+let landed = {pour:0, contre:0};
+const t0 = performance.now();
+
+function px(x,y,w,h,c){ g.fillStyle=c; g.fillRect(Math.round(x),Math.round(y),w,h); }
+function line(x0,y0,x1,y1,c){ const n=Math.max(Math.abs(x1-x0),Math.abs(y1-y0))|0; for (let i=0;i<=n;i++){ const k=n?i/n:0; px(x0+(x1-x0)*k, y0+(y1-y0)*k,1,1,c);} }
+function drawSpr(s,x,y){ x=Math.round(x); y=Math.round(y); if (s.img){ g.drawImage(s.img,x,y); return; } s.rows.forEach((r,j)=>{ for (let i=0;i<r.length;i++){ const ch=r[i]; if (ch!=='.'){ g.fillStyle=PAL[ch]; g.fillRect(x+i,y+j,1,1);} } }); }
+const Q = ['.###.','#...#','....#','...#.','..#..','.....','..#..'];
+function glyph(x,y,c,s=2){ Q.forEach((r,j)=>[...r].forEach((ch,i)=>{ if(ch==='#') px(x+i*s,y+j*s,s,s,c); })); }
+function ends(){ const ca=Math.cos(angle), sa=Math.sin(angle); return {pour:{x:CX-ca*L,y:CY-sa*L}, contre:{x:CX+ca*L,y:CY+sa*L}}; }
+function reserve(side, w){
+  const P = pack[side], s = SPR[w]; let r = P.rows[P.rows.length-1];
+  if (!r || r.used + s.w > PLATE_W){ r = {used:0, h:0, y: r ? r.y + r.h : 0}; P.rows.push(r); }
+  const it = {s, w, row:r, ox:r.used, landed:false}; r.used += s.w + 1; r.h = Math.max(r.h, s.h); P.items.push(it); return it;
+}
+function stackK(side){ const rs = pack[side].rows; if (!rs.length) return 1; const top = rs[rs.length-1]; const h = top.y + top.h; return h > MAX_H ? MAX_H/h : 1; }
+function itemPos(side, it, E){
+  const e = E[side], py = e.y + PLATE_DROP + Math.round(dip[side]), k = stackK(side), rw = it.row.used - 1;
+  return {x: e.x - rw/2 + it.ox, y: py - Math.round((it.row.y)*k) - it.s.h};
+}
+
+function draw(now){
+  const t = (now - t0)/1000;
+  g.clearRect(0,0,W,H);
+  for (let i=0;i<4;i++) px(0,112+i*5,W,1,C.soft);
+  for (let x=-40;x<=240;x+=20) line(CX+(x-CX)*0.35,112,x,130,C.soft);
+  px(64,116,72,6,C.ink); px(70,110,60,6,C.violet); px(70,110,60,1,'#fff'); px(80,104,40,6,C.ink);
+  px(96,CY,8,70,C.ink); px(98,CY+2,4,68,C.soft);
+  for (let y=CY+8;y<104;y+=10) px(98,y,4,2,C.violet);
+  const glow = phase==='weighing' ? (Math.sin(t*18)>0?C.volt:'#fff') : (Math.sin(t*3)>0?C.volt:'#FFE89A');
+  px(95,CY-9,10,10,C.ink); px(97,CY-7,6,6,glow); px(98,CY-6,2,2,'#fff');
+
+  if (phase==='idle') target = Math.sin(t*1.6)*0.07;
+  vel += (target-angle)*0.035*ts; vel *= 1 - 0.1*ts; angle += vel*ts;
+  if (phase==='weighing') judge.look = Math.max(-1,Math.min(1,angle*4));
+  const E = ends(), ca=Math.cos(angle), sa=Math.sin(angle);
+  for (let s=-L; s<=L; s+=0.5) px(CX+ca*s, CY+sa*s-1, 2, 3, C.ink);
+  for (let s=-L+2; s<=L-2; s+=0.5) px(CX+ca*s, CY+sa*s, 1, 1, '#9C8BFF');
+
+  ['pour','contre'].forEach(side => {
+    dip[side] *= Math.pow(.82, ts);
+    const e = E[side], py = e.y + PLATE_DROP + Math.round(dip[side]), col = side==='pour'?C.pour:C.contre, dk = side==='pour'?C.pourD:C.contreD;
+    px(e.x-2,e.y-2,4,4,C.ink);
+    line(e.x,e.y,e.x-17,py,C.ink); line(e.x,e.y,e.x+17,py,C.ink);
+    if (phase==='idle'){
+      if (state[side].length){ const bob = Math.round(Math.sin(t*4+(side==='pour'?0:2))*1.5); glyph(e.x-5,py-17+bob,dk); }
+    } else {
+      pack[side].items.forEach(it => { if (it.landed){ const p = itemPos(side,it,E); drawSpr(it.s,p.x,p.y); } });
+    }
+    px(e.x-21,py,42,3,C.ink); px(e.x-18,py+3,36,3,col); px(e.x-14,py+6,28,2,C.ink);
+  });
+
+  for (let i=falling.length-1;i>=0;i--){
+    const f = falling[i], p = itemPos(f.side, f.it, E);
+    if (f.it.w===1){ f.vy = Math.min(f.vy + 0.05*ts, 0.7); f.sway += 0.08*ts; }
+    else f.vy += (f.it.w>=4 ? 0.8 : 0.55)*ts;
+    f.y += f.vy*ts;
+    const sx = f.it.w===1 ? Math.sin(f.sway)*6 : 0;
+    if (f.y >= p.y){ falling.splice(i,1); f.it.landed = true; f.onLand(); }
+    else {
+      if (f.it.w>=4){ const sh = Math.max(4, f.it.s.w - Math.round((p.y - f.y)/6)); px(p.x + f.it.s.w/2 - sh/2, p.y + f.it.s.h - 1, sh, 1, 'rgba(27,26,58,.35)'); }
+      drawSpr(f.it.s, p.x + sx, f.y);
+    }
+  }
+  for (let i=flyers.length-1;i>=0;i--){
+    const f = flyers[i]; f.vy += 0.22; f.x += f.vx; f.y += f.vy;
+    if (f.y > H+20 || f.x < -30 || f.x > W+30) { flyers.splice(i,1); continue; }
+    drawSpr(f.s, f.x, f.y);
+  }
+  for (let i=dust.length-1;i>=0;i--){
+    const d = dust[i]; d.vy += .04*ts; d.x += d.vx*ts; d.y += d.vy*ts; d.vx *= Math.pow(.94,ts); d.life -= ts;
+    if (d.life<=0){ dust.splice(i,1); continue; }
+    px(d.x, d.y, 1, 1, d.life>10 ? C.ink : C.soft);
+  }
+  drawJudge(now);
+  requestAnimationFrame(draw);
+}
+
+/* =========================================================
+   Pesée
+   ========================================================= */
+let busy = false;
+const sleep = ms => new Promise(r=>setTimeout(r, reduce ? Math.min(ms,60) : ms));
+const status = s => { $('#status').textContent = s; };
+function tiltFor(p,c){ const tot=p+c; if (!tot) return 0; return Math.max(-.42,Math.min(.42,(c-p)/tot*0.9)); }
+function jolt(el){ if (reduce) return; el.classList.remove('jolt','shake'); void el.offsetWidth; el.classList.add('jolt'); }
+function fxShake(){ if (reduce) return; const app=$('#app'); app.classList.remove('shake','jolt'); void app.offsetWidth; app.classList.add('shake'); }
+function fxFlash(){ if (reduce) return; const f=document.createElement('div'); f.className='flash'; document.body.appendChild(f); setTimeout(()=>f.remove(),520); }
+
+function dropItem(side, a){
+  return new Promise(res => {
+    const it = reserve(side, a.w);
+    const f = {side, it, y:-16, vy:0, sway:0, onLand:()=>{
+      landed[side] += a.score; target = tiltFor(landed.pour, landed.contre);
+      vel += (side==='pour'?-1:1) * 0.0025 * a.w * a.w;
+      sfx.drop(a.w);
+      if (!reduce){
+        dip[side] = Math.min(4, a.w);
+        if (a.w>=2){ const p = itemPos(side, it, ends()), bx = p.x + it.s.w/2, by = p.y + it.s.h;
+          for (let k=0;k<a.w*3;k++) dust.push({x:bx+(Math.random()-.5)*it.s.w, y:by-1, vx:(k%2?1:-1)*(.4+Math.random()*a.w*.35), vy:-.3-Math.random()*a.w*.25, life:18+Math.random()*14}); }
+      }
+      if (a.w>=4) jolt($('#screen'));
+      if (a.w===5) try { navigator.vibrate && navigator.vibrate(60); } catch(e){}
+      res();
+    }};
+    if (reduce) f.y = 999;
+    falling.push(f);
+  });
+}
+
+function runQueue(list, done){
+  if (!list.length){ done(); return; }
+  const [[side, a], ...rest] = list;
+  openInterro(side, a, () => runQueue(rest, done));
+}
+async function weigh(){
+  if (busy || anyOpen()) return;
+  if (!state.pour.length && !state.contre.length){
+    status("IL FAUT AU MOINS UN ARGUMENT. MÊME UNE PLUME."); sfx.nope();
+    say("Un procès sans arguments ? Même moi je ne sais pas faire ça.", 'judge', 'stern');
+    $('#in-pour').focus(); return;
+  }
+  const pending = [...state.pour.map(a=>['pour',a]), ...state.contre.map(a=>['contre',a])].filter(([,a]) => !a.ans);
+  if (pending.length){
+    say(`Il reste ${pending.length} argument${pending.length>1?'s':''} à interroger avant la pesée.`, 'judge', 'stern', 2400);
+    runQueue(pending, () => weigh()); return;
+  }
+  clearTimeout(devilTimer); judge.devilUntil = 0;
+  say("Avant la pesée, une dernière question… pour toi.", 'judge', 'think', 2400);
+  const hope = await askHope();
+  if (hope === null){ say("D'accord, on prend encore le temps de réfléchir.", 'judge', 'neutral'); return; }
+  lastHope = hope;
+  const P = total('pour'), K = total('contre');
+  busy = true; setBusy(true);
+  $('.stage').scrollIntoView({behavior: reduce?'auto':'smooth', block:'center'});
+  sfx.go();
+  phase = 'weighing'; pack = {pour:{rows:[],items:[]}, contre:{rows:[],items:[]}}; falling=[]; flyers=[]; dust=[]; landed={pour:0,contre:0}; target=0;
+  say("SILENCE ! La séance est ouverte.", 'judge', 'stern', 2600);
+  const cd = $('#countdown');
+  status('CALIBRAGE DE LA BALANCE COSMIQUE…');
+  for (const [ci, n] of ['3','2','1'].entries()){ cd.innerHTML = `<span>${n}</span>`; sfx.tick(ci); await sleep(650); }
+  cd.innerHTML = '<span>PESÉE !</span>'; sfx.go(); await sleep(500); cd.innerHTML='';
+
+  const a = [...state.pour].sort((x,y)=>x.score-y.score), b = [...state.contre].sort((x,y)=>x.score-y.score);
+  const queue = []; for (let i=0;i<Math.max(a.length,b.length);i++){ if(a[i]) queue.push(['pour',a[i]]); if(b[i]) queue.push(['contre',b[i]]); }
+  const lines = ['ON POSE LES PREMIERS POIDS…','ÇA TANGUE…','LES POIDS LOURDS ARRIVENT…','MOMENT DE VÉRITÉ…'];
+  for (let i=0;i<queue.length;i++){
+    const [side, arg] = queue[i], last = i===queue.length-1 && queue.length>1;
+    status(lines[Math.min(lines.length-1, Math.floor(i/queue.length*lines.length))]);
+    judge.look = side==='pour'?-1:1;
+    if (arg.w===5){ say("ÉLÉPHANT EN APPROCHE ! Tout le monde à couvert !", 'judge', 'shock', 1800); sfx.whistle(5); await sleep(500); }
+    else if (arg.w===4){ say(rnd(["ATTENTION, ENCLUME !","Enclume en chute libre !"]), 'judge', 'shock', 1500); sfx.whistle(4); await sleep(350); }
+    else if (arg.w===1 && Math.random()<.6){ say("Une plume… elle prend son temps.", 'judge', 'bored', 1800); }
+    if (last && !reduce){ $('#screen').classList.add('zoom'); ts = .35; status('MOMENT DE VÉRITÉ… AU RALENTI'); sfx.slowmo(); }
+    await dropItem(side, arg);
+    if (last){ await sleep(700); ts = 1; }
+    await sleep(Math.max(160, 420 - i*20));
+  }
+  target = tiltFor(P,K);
+  status('LA BALANCE SE STABILISE…');
+  await sleep(1300);
+  $('#screen').classList.remove('zoom');
+
+  // éjection du camp écrasé
+  const share = Math.max(P,K)/((P+K)||1);
+  let ejected = false;
+  if (!tieOf(P,K) && share>0.8){
+    const loser = P>K ? 'contre' : 'pour';
+    if (pack[loser].items.length){
+      ejected = true;
+      const E = ends();
+      say(`Le camp ${loser.toUpperCase()} est EXPULSÉ du tribunal !`, 'judge', 'shock', 2200);
+      sfx.boing(); await sleep(250);
+      pack[loser].items.forEach(it => { const p = itemPos(loser,it,E); flyers.push({s:it.s, x:p.x, y:p.y, vx:(loser==='pour'?-1:1)*(1.2+Math.random()*2.5), vy:-4.5-Math.random()*3}); });
+      pack[loser] = {rows:[],items:[]};
+      vel += (loser==='pour'?1:-1)*0.05;
+      await sleep(1400);
+    }
+  }
+  // le marteau
+  say("Le tribunal a délibéré…", 'judge', 'think', 2000);
+  judge.gavTarget = 0.1; await sleep(800);
+  judge.gavTarget = 2.75; await sleep(90);
+  sfx.gavel(); fxShake(); fxFlash();
+  try { navigator.vibrate && navigator.vibrate([80,40,160]); } catch(e){}
+  await sleep(250); judge.gavTarget = 2.3;
+  phase = 'done';
+  const res = recordGame(P, K, ejected);
+  showVerdict(P, K, res);
+}
+function setBusy(on){
+  $('#go').disabled = on;
+  document.querySelectorAll('.add input, .add button, #q, #clearAll, .del, #helpBtn').forEach(el => el.disabled = on);
+}
+
+/* =========================================================
+   Trophées & niveaux
+   ========================================================= */
+function grant(id, list){ const s = state.stats; if (s.badges.includes(id)) return; s.badges.push(id); s.xp += 25; list.push(id); }
+function recordGame(P, K, ejected){
+  const s = state.stats, before = levelOf(s.xp), news = [];
+  const all = [...state.pour, ...state.contre], n = all.length, tie = tieOf(P,K), oui = !tie && P>K;
+  const share = Math.max(P,K)/((P+K)||1);
+  s.games++; if (tie) s.ties++; else if (oui) s.oui++; else s.non++;
+  const sig = JSON.stringify([state.question.trim(), state.pour.map(a=>[a.t,a.score]), state.contre.map(a=>[a.t,a.score])]);
+  if (!tie && (lastHope==='oui' || lastHope==='non')){ if ((lastHope==='oui')===oui) grant('intuition',news); else grant('coeur',news); }
+  if (coveredCats().size >= 5) grant('horizon',news);
+  s.streak = sig===s.lastSig ? s.streak+1 : 1; s.lastSig = sig;
+  const gained = 10 + Math.min(20, n*2); s.xp += gained;
+  const hour = new Date().getHours();
+  if (s.games>=1) grant('premier',news);
+  if (s.oui>=10) grant('fonceuse',news);
+  if (s.non>=10) grant('sage',news);
+  if (s.ties>=3) grant('indecise',news);
+  if (all.filter(a=>a.w===5).length>=5) grant('poidslourd',news);
+  if (n>=3 && all.every(a=>a.w===1)) grant('plume',news);
+  if (!tie && share>=.9 && n>=2) grant('ecrasement',news);
+  if (ejected) grant('expulsion',news);
+  if (!tie && Math.abs(P-K)/((P+K)||1) < .1) grant('photo',news);
+  if (n>=8) grant('avocate',news);
+  if ((!state.pour.length && state.contre.length>=3) || (!state.contre.length && state.pour.length>=3)) grant('mauvaisefoi',news);
+  if (s.streak>=3) grant('tetue',news);
+  if (hour<5) grant('nuit',news);
+  if (s.games>=25) grant('marathon',news);
+  addArchive(P, K, tie, oui);
+  save(); renderHud();
+  const after = levelOf(s.xp);
+  return {gained: gained + news.length*25, news, levelUp: after>before ? LEVELS[after][1] : null, acc: after>before ? ACCESS[after] : null};
+}
+function rewardsHTML(r){
+  const items = r.news.map(id => { const b = BADGES.find(x=>x.id===id); return `<div class="troph new"><div class="ticon">★</div><div><b>${esc(b.name)}</b><span>${esc(b.desc)}</span></div></div>`; }).join('');
+  return `<div class="rewards"><span class="xp">+${r.gained} XP</span>${r.levelUp?`<span class="up">NIVEAU SUPÉRIEUR : ${esc(r.levelUp.toUpperCase())} !</span><span>Le Juge Hibou gagne ${esc(r.acc||'du prestige')}. Regarde-le bien.</span>`:''}${items?`<span class="xp">TROPHÉE${r.news.length>1?'S':''} DÉBLOQUÉ${r.news.length>1?'S':''} !</span>${items}`:''}</div>`;
+}
+function openTrophies(){
+  const s = state.stats;
+  $('#tsum').textContent = `${s.badges.length} sur ${BADGES.length} débloqués · ${s.oui} oui, ${s.non} non, ${s.ties} égalité${s.ties>1?'s':''}.`;
+  $('#tgrid').innerHTML = BADGES.map(b => { const ok = s.badges.includes(b.id);
+    return `<div class="troph ${ok?'':'locked'}"><div class="ticon">${ok?'★':'?'}</div><div><b>${ok?esc(b.name):'???'}</b><span>${esc(b.desc)}</span></div></div>`; }).join('');
+  $('#tover').hidden = false; $('#tclose').focus();
+}
+
+/* =========================================================
+   Verdict
+   ========================================================= */
+const QUIPS = {
+  oui:{ ecrasant:["Victoire par K.O. au premier round.","Les arguments contre ont demandé l'asile dans une autre question.","Même la balance a envie de t'applaudir."],
+        net:["Ça penche clairement. Fonce, mais attache ta ceinture.","Le jury est formel, à une ou deux plumes près.","Tes arguments pour ont fait de la muscu. Ça se voit."],
+        serre:["Victoire aux points. Le jury a transpiré.","C'est passé à un caillou près. Assume.","Oui, mais un petit oui. Un oui qui chuchote."] },
+  non:{ ecrasant:["Non. Range ça et va boire un verre d'eau.","La balance a parlé, et elle a dit : jamais de la vie.","Les arguments pour sont rentrés chez eux en pleurant."],
+        net:["Ça penche côté sagesse. Ton futur toi te remercie.","Pas cette fois. Garde ton énergie pour une meilleure idée.","Le non l'emporte, poliment mais fermement."],
+        serre:["Non, mais de justesse. Repose la question dans une semaine ?","Un caillou de moins côté contre et c'était oui. Dommage.","Le non gagne au photo-finish."] },
+  tie:["La balance refuse de se mouiller.","Égalité parfaite. Statistiquement, c'est presque un exploit.","Le tribunal est en grève. Seul le destin peut trancher."]
+};
+const HOPE_TXT = {oui:'OUI', non:'NON'};
+function insightText(kind){
+  const h = lastHope;
+  if (kind==='tie') return h && h!=='flou'
+    ? `La balance ne tranche pas, mais toi, tu espérais ${HOPE_TXT[h]}. C'est peut-être déjà ta réponse.`
+    : "La balance ne tranche pas. Lance la pièce ci-dessous et observe ta réaction : soulagement ou déception, c'est elle qui compte.";
+  if (!h || h==='flou') return "Regarde ta toute première réaction à ce verdict : soulagement ou déception ? C'est souvent ta vraie réponse (technique de la pièce).";
+  if ((h==='oui') === (kind==='oui')) return `Tu espérais ${HOPE_TXT[h]}, la balance aussi. Ton intuition et tes arguments sont d'accord : c'est le meilleur signal possible.`;
+  return `Tu espérais ${HOPE_TXT[h]}, la balance dit ${kind==='oui'?'OUI':'NON'}. Si tu es déçue, ton cœur a peut-être déjà choisi : demande-toi quel argument tu as sous-estimé. Si tu es soulagée, la balance t'a rendu service.`;
+}
+function reasonOf(a){
+  const r = [], n = a.ans;
+  if (n.imp===3) r.push('essentiel pour toi'); else if (n.imp===0) r.push('un détail, selon toi');
+  if (n.dur===2) r.push('comptera encore dans 10 ans'); else if (n.dur===0) r.push('oublié dans 10 jours');
+  if (n.cer===0) r.push('peu probable');
+  const xo = QDEF[n.x].o, xv = n.xv;
+  if (xv===xo.length-1) r.push({regret:'gros regret si tu renonces',amie:'solide même vu de loin',calme:'tient aussi à tête reposée',origine:'vient vraiment de toi',rattrapable:'irréversible',peur:'un vrai problème'}[n.x]);
+  else if (xv===0) r.push({regret:'pas de regret',amie:'léger vu de loin',calme:'dépend de ton humeur',origine:'vient surtout des autres',rattrapable:'facile à rattraper',peur:'surtout la peur du changement'}[n.x]);
+  return r.slice(0,2).join(' · ') || 'poids moyen sur tous les critères';
+}
+function detailHTML(all){
+  const mx = Math.max(...all.map(a=>a.score), 1);
+  const rows = [...all].sort((x,y)=>y.score-x.score).map(a => `<div class="drow d${a.s}">
+      <span class="dt">${esc(a.t)}</span><span class="dv">${WEIGHTS[a.w].name} · ${fmt(a.score)}</span>
+      <span class="dbar"><i style="width:${Math.round(a.score/mx*100)}%"></i></span>
+      <small>${esc(reasonOf(a))}</small></div>`).join('');
+  const cov = coveredCats(), blind = CATS.filter(c=>!cov.has(c.id)).map(c=>c.label.toLowerCase());
+  return `<details class="detail"><summary>LE DÉTAIL DE LA PESÉE</summary>${rows}
+    ${blind.length ? `<p class="blind">Angles morts : ${esc(blind.join(', '))}. Rien à dire de ce côté-là ? Pose-toi la question.</p>` : '<p class="blind">Tu as exploré les 8 domaines. Le hibou est impressionné.</p>'}</details>`;
+}
+async function typeText(el, text){
+  el.classList.remove('done'); el.textContent='';
+  for (const ch of text){ el.textContent += ch; if (ch!==' ') sfx.type(); await sleep(reduce?0:38); }
+  el.classList.add('done');
+}
+async function showVerdict(P, K, res){
+  const ov = $('#overlay'), typed = $('#typed'), rev = $('#reveal');
+  const q = (state.question||'').trim() || 'Ma question mystère';
+  clearTimeout(toastOutT); $('#toast').hidden = true; $('#toast').classList.remove('out');
+  clearTimeout(closeT); ov.classList.remove('closing');
+  $('#askEcho').textContent = '« '+q+' »';
+  rev.hidden = true; rev.innerHTML=''; ov.hidden = false;
+  const tie = tieOf(P,K), oui = !tie && P>K, kind = tie?'tie':oui?'oui':'non';
+  const vj = $('#vjudge'); vj.classList.remove('bang'); void vj.offsetWidth; vj.classList.add('bang');
+  $('#vdevil').hidden = kind !== 'non';
+  await typeText(typed, tie ? 'LA BALANCE HÉSITE...' : 'LA BONNE DÉCISION EST...');
+  await sleep(900);
+  const share = Math.max(P,K)/((P+K)||1);
+  const tier = share>=.7?'ecrasant':share>=.58?'net':'serre';
+  const all = [...state.pour.map(a=>({...a,s:'pour'})), ...state.contre.map(a=>({...a,s:'contre'}))];
+  const winSide = tie ? null : (oui?'pour':'contre');
+  const mvp = all.filter(a=>!winSide||a.s===winSide).sort((x,y)=>y.score-x.score)[0];
+  const pp = P+K ? Math.round(P/(P+K)*100) : 50;
+  const quip = tie ? rnd(QUIPS.tie) : rnd(QUIPS[kind][tier]);
+  lastVerdict = {q, kind, quip, P, K, pp, coin:null};
+  rev.innerHTML = `
+    <div class="stamp ${kind}" aria-hidden="true">${tie?'???':oui?'OUI':'NON'}</div>
+    <h2 class="verdict slam ${kind}">${tie?'ÉGALITÉ':oui?'OUI, FONCE !':'NON, ON OUBLIE.'}</h2>
+    <p class="quip">${esc(quip)}</p>
+    <p class="insight">${esc(insightText(kind))}</p>
+    <div>
+      <div class="meter" aria-label="Pour ${pp} %, contre ${100-pp} %"><div class="mp" style="width:50%"></div><div class="mc" style="width:50%"></div></div>
+      <div class="score"><span>POUR ${fmt(P)}</span><span class="pct">${reduce?pp:50} % / ${reduce?100-pp:50} %</span><span>CONTRE ${fmt(K)}</span></div>
+    </div>
+    ${mvp?`<p class="mvp">Argument décisif : <strong>« ${esc(mvp.t)} »</strong> (${WEIGHTS[mvp.w].name}, ${fmt(mvp.score)} pts)</p>`:''}
+    ${detailHTML(all)}
+    ${tie?`<div class="coinbox"><div class="coin" id="coin">?</div><button class="btn" id="flip" type="button">LANCER LA PIÈCE DU DESTIN</button></div><p class="quip" id="coinRes" hidden></p>`:''}
+    ${rewardsHTML(res)}
+    <div class="actions">
+      <button class="btn share" id="shareV" type="button">PARTAGER LE VERDICT</button>
+      <button class="btn" id="again" type="button">RE-PESER</button>
+      <button class="btn" id="edit" type="button">MODIFIER LES ARGUMENTS</button>
+      <button class="btn" id="fresh" type="button">NOUVELLE QUESTION</button>
+    </div>`;
+  let j = 0;
+  [...rev.children].forEach(el => { if (!el.classList.contains('verdict') && !el.classList.contains('stamp')){ el.classList.add('in'); el.style.setProperty('--i', j++); } });
+  rev.hidden = false;
+  // la jauge et le pourcentage démarrent quand la jauge a fini d'apparaître
+  setTimeout(()=>{ rev.querySelector('.mp').style.width=pp+'%'; rev.querySelector('.mc').style.width=(100-pp)+'%'; }, reduce ? 0 : 420);
+  const pctEl = rev.querySelector('.pct');
+  if (!reduce) for (let s=1;s<=10;s++) setTimeout(()=>{ const v = Math.round(50+(pp-50)*s/10); pctEl.textContent = `${v} % / ${100-v} %`; }, 420 + s*80);
+  if (tie){ sfx.tie(); burst(C.violet,false); setExpr('think',Infinity); say("Le tribunal… ne sait pas. C'est gênant.", 'judge', 'think', Infinity); }
+  else if (oui){ sfx.win(); burst(C.pour,true); say("Accordé ! Le tribunal te souhaite bonne chance.", 'judge', 'happy', Infinity); }
+  else { sfx.lose(); burst(C.contre,false); say("Rejeté ! Le tribunal a tranché, sans appel.", 'judge', 'stern', Infinity); }
+  const after = tie ? .9 : oui ? 1.3 : 2.4;   // laisse finir la fanfare ou le trombone
+  if (res.news.length) sfx.trophy(after);
+  if (res.levelUp) sfx.levelup(after + (res.news.length ? .65 : 0));
+  $('#again').onclick = () => { closeVerdict(); setTimeout(weigh, 200); };
+  $('#edit').onclick = () => closeVerdict();
+  $('#shareV').onclick = () => shareVerdict();
+  $('#fresh').onclick = () => { closeVerdict(); state.question=''; state.pour=[]; state.contre=[]; state.sample=false; save(); renderAll(); $('#q').focus(); say("Nouvelle affaire ! Le tribunal t'écoute.", 'judge', 'happy'); };
+  if (tie) $('#flip').onclick = flipCoin;
+  (tie ? $('#flip') : $('#edit')).focus();
+}
+let closeT = null;
+function closeVerdict(){
+  const ov = $('#overlay');
+  if (reduce) ov.hidden = true;
+  else { ov.classList.add('closing'); clearTimeout(closeT); closeT = setTimeout(()=>{ ov.hidden = true; ov.classList.remove('closing'); }, 170); }
+  phase='idle'; pack={pour:{rows:[],items:[]},contre:{rows:[],items:[]}}; falling=[]; flyers=[]; dust=[];
+  busy=false; setBusy(false); status('LES POIDS SONT SCELLÉS. MÊME TOI TU NE LES CONNAIS PAS.'); parts.length=0; setExpr('neutral',0);
+}
+async function flipCoin(){
+  const coin = $('#coin'), btn = $('#flip'); btn.disabled = true;
+  coin.textContent='?'; coin.classList.remove('spin'); void coin.offsetWidth; coin.classList.add('spin');
+  sfx.spin();
+  await sleep(1650);
+  const pile = Math.random()<.5; coin.textContent = pile?'PILE':'FACE'; sfx.coin();
+  const news = []; state.stats.flips++; grant('destin', news);
+  if (state.archive[0] && state.archive[0].v==='tie') state.archive[0].coin = pile ? 'oui' : 'non';
+  if (lastVerdict) lastVerdict.coin = pile ? 'oui' : 'non';
+  save(); renderHud();
+  const r = $('#coinRes'); r.hidden=false;
+  r.innerHTML = (pile ? '<strong>PILE : OUI, FONCE !</strong> Le destin a parlé, tu n\'y es pour rien.' : '<strong>FACE : NON, ON OUBLIE.</strong> Le destin a parlé, ne discute pas avec lui.')
+    + (news.length ? ' <br><strong>Trophée débloqué : Main du destin (+25 XP)</strong>' : '');
+  if (news.length) sfx.trophy(.4);
+  say(pile ? "Pile ! Le destin dit oui. Je n'y suis pour rien." : "Face ! Le destin dit non. Ne me regarde pas comme ça.", 'judge', pile?'happy':'stern', Infinity);
+  burst(pile?C.pour:C.contre, pile);
+  btn.disabled = false; btn.textContent = 'RELANCER LA PIÈCE';
+}
+
+/* =========================================================
+   Confettis pixel
+   ========================================================= */
+const fx = $('#fx'), fg = fx.getContext('2d'); const parts = [];
+function sizeFx(){ fx.width = innerWidth; fx.height = innerHeight; }
+addEventListener('resize', sizeFx); sizeFx();
+function burst(main, big){
+  if (reduce) return;
+  const cols = [main, C.volt, C.violet, '#fff', main], n = big ? 180 : 90;
+  for (let i=0;i<n;i++){
+    const fromSide = big && i%2;
+    parts.push({ x: fromSide ? (i%4<2?0:fx.width) : fx.width/2 + (Math.random()-.5)*120, y: fromSide ? fx.height*.7 : fx.height*.35,
+      vx: fromSide ? (i%4<2?1:-1)*(4+Math.random()*9) : (Math.random()-.5)*16, vy: -6-Math.random()*12,
+      s: 5+Math.floor(Math.random()*3)*3, c: cols[i%cols.length], life: 120+Math.random()*80 });
+  }
+}
+function fxLoop(){
+  fg.clearRect(0,0,fx.width,fx.height);
+  for (let i=parts.length-1;i>=0;i--){
+    const p = parts[i]; p.vy += .32; p.vx *= .99; p.x += p.vx; p.y += p.vy; p.life--;
+    if (p.life<=0 || p.y>fx.height+20){ parts.splice(i,1); continue; }
+    fg.fillStyle = C.ink; fg.fillRect(Math.round(p.x)-1,Math.round(p.y)-1,p.s+2,p.s+2);
+    fg.fillStyle = p.c; fg.fillRect(Math.round(p.x),Math.round(p.y),p.s,p.s);
+  }
+  requestAnimationFrame(fxLoop);
+}
+
+/* =========================================================
+   Archives du tribunal : chaque verdict est gardé, et le hibou
+   revient demander si c'était une bonne décision.
+   ========================================================= */
+const DAY = 864e5;
+let lastVerdict = null;
+const VLABEL = {oui:'OUI', non:'NON', tie:'ÉGALITÉ'};
+const finalV = e => e.v==='tie' ? (e.coin || 'tie') : e.v;
+function addArchive(P, K, tie, oui){
+  const top = [...allArgs()].sort((x,y)=>y.score-x.score)[0];
+  state.archive.unshift({id:Date.now(), date:Date.now(), q:(state.question||'').trim() || 'Question mystère',
+    v: tie?'tie':oui?'oui':'non', hope:lastHope||null, P:Math.round(P*10)/10, K:Math.round(K*10)/10, top: top ? top.t : '', coin:null, did:null, rate:null});
+  state.archive = state.archive.slice(0, 60);
+}
+const pendingFollow = () => state.archive.filter(e => !e.rate && e.did!=='attente' && Date.now()-e.date > 2*DAY && finalV(e)!=='tie');
+function ago(t){ const d = Math.floor((Date.now()-t)/DAY); return d<=0 ? "aujourd'hui" : d===1 ? 'hier' : `il y a ${d} jours`; }
+function renderArchiveDot(){ const n = pendingFollow().length; $('#adot').hidden = !n; $('#adot').textContent = n > 9 ? '9+' : String(n||'!'); }
+function renderArchives(){
+  const A = state.archive, rated = A.filter(e => e.rate), fol = rated.filter(e => e.did==='suivi'), good = fol.filter(e => e.rate==='bonne');
+  const intu = A.filter(e => (e.hope==='oui'||e.hope==='non') && finalV(e)!=='tie'), intuOk = intu.filter(e => e.hope===finalV(e));
+  $('#asum').innerHTML = !A.length ? "Aucune affaire jugée pour l'instant. Ton premier verdict apparaîtra ici."
+    : `<b>${A.length}</b> affaire${A.length>1?'s':''} jugée${A.length>1?'s':''}. `
+      + (fol.length ? `Fiabilité du tribunal : <b>${Math.round(good.length/fol.length*100)} %</b> de bonnes décisions quand tu as suivi le verdict (${fol.length} retour${fol.length>1?'s':''}). `
+                    : "Dis au hibou, avec le recul, si ses verdicts étaient bons : il calculera sa fiabilité. ")
+      + (intu.length ? `Ton intuition était d'accord avec la balance <b>${intuOk.length}</b> fois sur ${intu.length}.` : '');
+  $('#alist').innerHTML = A.map((e,i) => {
+    const fv = finalV(e), todo = !e.rate && e.did!=='attente' && fv!=='tie';
+    let fol = '';
+    if (e.rate){
+      fol = `<p class="cfol">${e.did==='suivi'?'Tu as suivi le verdict':"Tu as fait l'inverse"} · ${{bonne:'bonne décision',mitigee:'décision mitigée',mauvaise:'mauvaise décision'}[e.rate]}.</p>`;
+    } else if (fv==='tie'){
+      fol = `<p class="cfol">Égalité sans pièce lancée : rien à évaluer.</p>`;
+    } else if (!e.did){
+      fol = `<p class="cask">Qu'as-tu fait ?</p><div class="crow">
+        <button class="btn" data-i="${i}" data-did="suivi">J'AI SUIVI LE VERDICT</button>
+        <button class="btn" data-i="${i}" data-did="inverse">J'AI FAIT L'INVERSE</button>
+        <button class="btn" data-i="${i}" data-did="attente">PAS ENCORE DÉCIDÉ</button></div>`;
+    } else if (e.did==='attente'){
+      fol = `<p class="cfol">Pas encore décidé. <button class="cdel" data-i="${i}" data-did="reset">J'ai décidé</button></p>`;
+    } else {
+      fol = `<p class="cask">${e.did==='suivi'?'Tu as suivi le verdict.':"Tu as fait l'inverse."} Avec le recul, c'était…</p><div class="crow">
+        <button class="btn" data-i="${i}" data-rate="bonne">UNE BONNE DÉCISION</button>
+        <button class="btn" data-i="${i}" data-rate="mitigee">MITIGÉ</button>
+        <button class="btn" data-i="${i}" data-rate="mauvaise">UNE MAUVAISE DÉCISION</button></div>`;
+    }
+    return `<li class="case${todo?' todo':''}"><div class="chead"><span class="cv ${fv}">${e.v==='tie' && e.coin ? 'PIÈCE : '+VLABEL[fv] : VLABEL[fv]}</span><span class="cdate">${ago(e.date)}</span></div>
+      <p class="cq">« ${esc(e.q)} »</p>
+      <small>Pour ${fmt(e.P)} · Contre ${fmt(e.K)}${e.hope==='oui'||e.hope==='non' ? ` · tu espérais ${VLABEL[e.hope]}` : ''}${e.top ? ` · décisif : « ${esc(e.top)} »` : ''}</small>
+      ${fol}<button class="cdel" data-i="${i}" data-del="1">Effacer de l'archive</button></li>`;
+  }).join('');
+}
+$('#alist').addEventListener('click', ev => {
+  const b = ev.target.closest('button'); if (!b) return;
+  const e = state.archive[+b.dataset.i]; if (!e) return;
+  if (b.dataset.del){ state.archive.splice(+b.dataset.i, 1); sfx.del(); }
+  else if (b.dataset.did){ e.did = b.dataset.did==='reset' ? null : b.dataset.did; sfx.pick(3); }
+  else if (b.dataset.rate){
+    e.rate = b.dataset.rate; const news = [];
+    state.stats.xp += 5;
+    if (state.archive.filter(x => x.rate).length >= 5) grant('archiviste', news);
+    if (e.did==='inverse' && e.rate==='bonne') grant('rebelle', news);
+    const line = e.did==='suivi'
+      ? {bonne:"Le tribunal savoure sa victoire. Merci de ton retour !", mitigee:"Mitigé… Le hibou note et ajuste ses lunettes.", mauvaise:"Aïe. Le hibou prend note. La prochaine fois, interroge mieux les éléphants."}[e.rate]
+      : {bonne:"Tu as désobéi au tribunal… et tu as eu raison. Respect.", mitigee:"Ni pour, ni contre, bien au contraire. Noté.", mauvaise:"Le hibou ne dira pas « je te l'avais dit ». Enfin si, un peu."}[e.rate];
+    say(line, 'judge', e.rate==='mauvaise' ? 'stern' : 'happy');
+    if (news.length){ sfx.trophy(.2); burst(C.volt, false); } else sfx.coin();
+  }
+  save(); renderHud(); renderArchives(); renderArchiveDot();
+});
+$('#abtn').onclick = () => { if (busy) return; renderArchives(); $('#aover').hidden = false; $('#aclose').focus(); };
+$('#aclose').onclick = () => { $('#aover').hidden = true; };
+
+/* =========================================================
+   Carte de verdict à partager (image 1080 × 1350)
+   ========================================================= */
+function wrapText(x, text, maxW){
+  const words = String(text).split(/\s+/), lines = []; let cur = '';
+  for (const w of words){ const t = cur ? cur+' '+w : w; if (x.measureText(t).width > maxW && cur){ lines.push(cur); cur = w; } else cur = t; }
+  if (cur) lines.push(cur); return lines;
+}
+async function shareVerdict(){
+  const v = lastVerdict; if (!v) return;
+  try { await Promise.all([document.fonts.load('40px "Press Start 2P"'), document.fonts.load('600 40px "Pixelify Sans"')]); } catch(e){}
+  const W2 = 1080, H2 = 1350, c = document.createElement('canvas'); c.width = W2; c.height = H2;
+  const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
+  const disp = '"Press Start 2P", monospace', body = '"Pixelify Sans", monospace';
+  const kind = v.kind==='tie' && v.coin ? v.coin : v.kind, col = kind==='oui' ? C.pour : kind==='non' ? C.contre : C.violet;
+  x.fillStyle = '#EEF0FF'; x.fillRect(0,0,W2,H2);
+  x.fillStyle = C.soft; for (let i=0;i<W2;i+=54) x.fillRect(i,0,3,H2); for (let j=0;j<H2;j+=54) x.fillRect(0,j,W2,3);
+  x.fillStyle = C.ink; x.fillRect(72,72,960,1230); x.fillStyle = '#fff'; x.fillRect(60,60,948,1218);
+  x.lineWidth = 10; x.strokeStyle = C.ink; x.strokeRect(60,60,948,1218);
+  x.textAlign = 'center'; x.textBaseline = 'top';
+  x.font = `34px ${disp}`;
+  [[C.pour,8],[C.contre,4],[C.ink,0]].forEach(([cc,o]) => { x.fillStyle = cc; x.fillText("LA BALANCE D'ONDINE", 534+o, 110+o); });
+  if (imgs.judge) x.drawImage(imgs.judge, 534-128, 180, 256, 256);
+  x.font = `600 46px ${body}`; x.fillStyle = '#5C5A86';
+  const ql = wrapText(x, '« '+v.q+' »', 820).slice(0,3); ql.forEach((l,i) => x.fillText(l, 534, 470 + i*56));
+  let y = 470 + ql.length*56 + 30;
+  x.font = `24px ${disp}`; x.fillStyle = C.ink; x.fillText(v.kind==='tie' && v.coin ? 'LA PIÈCE DU DESTIN A DIT…' : 'LA BONNE DÉCISION EST…', 534, y); y += 60;
+  x.fillStyle = C.ink; x.fillRect(132,y+10,840,170); x.fillStyle = col; x.fillRect(122,y,840,170);
+  x.lineWidth = 8; x.strokeRect(122,y,840,170);
+  const big = kind==='oui' ? 'OUI, FONCE !' : kind==='non' ? 'NON, ON OUBLIE.' : 'ÉGALITÉ';
+  x.font = `54px ${disp}`; x.fillStyle = C.ink; x.fillText(big, 538, y+62); x.fillStyle = '#fff'; x.fillText(big, 534, y+58);
+  y += 220;
+  x.font = `600 40px ${body}`; x.fillStyle = C.ink;
+  wrapText(x, v.quip, 820).slice(0,3).forEach((l,i) => x.fillText(l, 534, y + i*50)); y = Math.max(y + 170, 1110);
+  x.fillStyle = C.ink; x.fillRect(122,y-6,840,48); x.fillStyle = C.pour; x.fillRect(128,y,828*v.pp/100,36); x.fillStyle = C.contre; x.fillRect(128+828*v.pp/100,y,828*(100-v.pp)/100,36);
+  x.font = `20px ${disp}`; x.fillStyle = C.ink; x.textAlign = 'left'; x.fillText('POUR '+fmt(v.P), 122, y+56); x.textAlign = 'right'; x.fillText('CONTRE '+fmt(v.K), 962, y+56);
+  x.textAlign = 'center'; x.font = `16px ${disp}`; x.fillStyle = '#5C5A86'; x.fillText('PESÉ PAR LE JUGE HIBOU', 534, 1232);
+  const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+  if (!blob) return;
+  const file = new File([blob], 'verdict-balance-ondine.png', {type:'image/png'});
+  try {
+    if (navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title:"La Balance d'Ondine", text:`« ${v.q} » : ${big}`}); return; }
+  } catch(err){ if (err && err.name==='AbortError') return; }
+  const im = $('#simg'); if (im.dataset.url) URL.revokeObjectURL(im.dataset.url);
+  im.dataset.url = im.src = URL.createObjectURL(blob);
+  $('#sover').hidden = false; $('#sclose').focus();
+}
+$('#sclose').onclick = () => { $('#sover').hidden = true; };
+
+/* =========================================================
+   Appli mobile : installation, hors ligne, écran titre
+   ========================================================= */
+const inFrame = (() => { try { return window.self !== window.top; } catch(e){ return true; } })();
+const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform==='MacIntel' && navigator.maxTouchPoints > 1);
+let installEvt = null;
+addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; if (!inFrame) $('#installBtn').hidden = false; });
+addEventListener('appinstalled', () => { $('#installBtn').hidden = true; say("Installée ! Le tribunal siège maintenant sur ton écran d'accueil.", 'judge', 'happy'); });
+$('#installBtn').onclick = async () => {
+  if (installEvt){ installEvt.prompt(); try { await installEvt.userChoice; } catch(e){} installEvt = null; $('#installBtn').hidden = true; }
+  else { $('#iosover').hidden = false; $('#iosclose').focus(); }
+};
+$('#iosclose').onclick = () => { $('#iosover').hidden = true; };
+if (!inFrame && !standalone && isIOS) $('#installBtn').hidden = false;
+if ('serviceWorker' in navigator && !inFrame && location.protocol==='https:') navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+function closeSplash(){
+  const s = $('#splash'); if (s.hidden || s.classList.contains('out')) return;
+  sfx.go(); try { navigator.vibrate && navigator.vibrate(20); } catch(e){}
+  if (reduce){ s.hidden = true; afterSplash(); return; }
+  s.classList.add('out'); setTimeout(() => { s.hidden = true; afterSplash(); }, 460);
+}
+$('#sgo').onclick = closeSplash;
+$('#splash').addEventListener('click', e => { if (e.target.id !== 'sgo') closeSplash(); });
+function afterSplash(){
+  const due = pendingFollow()[0];
+  const lvl = LEVELS[levelOf(state.stats.xp)][1];
+  if (due){
+    say(`Il y a ${Math.floor((Date.now()-due.date)/DAY)} jours, tu demandais « ${due.q} ». Le tribunal veut savoir : c'était la bonne décision ? Passe aux archives.`, 'judge', 'think', 7000);
+  } else say(state.stats.games ? `Bon retour, ${lvl.toLowerCase()} ! Quelle affaire aujourd'hui ?` : "Bienvenue au tribunal ! Pose ta question, je m'occupe du reste.", 'judge', 'happy');
+}
+
+/* =========================================================
+   Démarrage
+   ========================================================= */
+function start(data){
+  load(data); renderAll(); renderArchiveDot(); fetchSounds();
+  const s = state.stats;
+  $('#sinfo').textContent = s.games
+    ? `${LEVELS[levelOf(s.xp)][1]} · ${s.games} verdict${s.games>1?'s':''} rendu${s.games>1?'s':''} · ${s.badges.length} trophée${s.badges.length>1?'s':''}`
+    : "Pèse le pour et le contre. Le hibou s'occupe du reste.";
+  $('#vjudge').src = IMG.judge; $('#tjimg').src = IMG.judge; $('#vdevil').src = IMG.devil;
+  document.querySelectorAll('img[data-img]').forEach(im => { im.src = IMG[im.dataset.img]; });
+  requestAnimationFrame(draw); fxLoop();
+  $('#sgo').focus();
+}
+window.claude?.hot?.snapshot?.(() => ({state: serial()}));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+})();
+</script>
+
+</body>
+</html>
